@@ -12,6 +12,7 @@
 * 🏗️ [2. Kiến trúc Hệ thống Chi tiết & Luồng Dữ liệu Triển khai](docs/02-system-architecture.md)
 * 📐 [3. Phân tích Thiết kế Hệ thống (UML & Database ERD)](docs/03-system-design-uml-db.md)
 * 🗓️ [4. Kế hoạch & Lộ trình Triển khai Chi tiết 12 Tuần](docs/04-implementation-roadmap.md)
+* ⚙️ [5. Đặc tả Tầng 2: Động học Sinh cơ học & Học máy nhẹ](docs/05-layer2-kinematics-and-light-ml.md)
 
 ---
 
