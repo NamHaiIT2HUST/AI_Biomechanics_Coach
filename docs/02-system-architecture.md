@@ -1,8 +1,5 @@
 # ĐẶC TẢ CHI TIẾT: KIẾN TRÚC HỆ THỐNG & LUỒNG DỮ LIỆU TRIỂN KHAI
 
-> **Tài liệu:** `docs/02-system-architecture.md`  
-> **Dự án:** Phân tích dữ liệu video và gợi ý chỉnh sửa động tác cho người tập gym (Project 3 - SoICT, HUST)  
-> **Cập nhật:** 2026-10-13
 
 ---
 

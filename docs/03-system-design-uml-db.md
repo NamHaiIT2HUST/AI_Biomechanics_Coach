@@ -1,8 +1,5 @@
 # ĐẶC TẢ CHI TIẾT: PHÂN TÍCH THIẾT KẾ HỆ THỐNG (UML & DATABASE)
 
-> **Tài liệu:** `docs/03-system-design-uml-db.md`  
-> **Dự án:** Phân tích dữ liệu video và gợi ý chỉnh sửa động tác cho người tập gym (Project 3 - SoICT, HUST)  
-> **Cập nhật:** 2026-10-13
 
 ---
 
