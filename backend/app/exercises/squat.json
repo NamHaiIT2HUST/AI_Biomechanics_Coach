@@ -1,0 +1,75 @@
+{
+  "id": "squat",
+  "name": "Barbell / Bodyweight Squat",
+  "category": "gym_lower_body",
+  "camera": {
+    "recommended_views": ["side_90deg", "front_0deg"],
+    "primary": "side_90deg",
+    "min_fps": 30,
+    "instruction": "Đặt điện thoại ngang tầm hông, cách 2-3m, quay trọn vẹn từ bên hông."
+  },
+  "joints_to_track": [
+    {
+      "id": "knee",
+      "points": ["hip", "knee", "ankle"],
+      "side": "both"
+    },
+    {
+      "id": "hip",
+      "points": ["shoulder", "hip", "knee"],
+      "side": "both"
+    },
+    {
+      "id": "trunk",
+      "type": "vertical_angle",
+      "points": ["hip", "shoulder"]
+    }
+  ],
+  "phases": {
+    "setup": {
+      "signal": "knee",
+      "condition": "angle > 160"
+    },
+    "bottom": {
+      "signal": "knee",
+      "detect": "local_min",
+      "prominence": 15
+    },
+    "standing": {
+      "signal": "knee",
+      "detect": "local_max",
+      "prominence": 15
+    }
+  },
+  "rep_counter": {
+    "signal": "knee",
+    "enter_bottom_threshold": 105,
+    "exit_top_threshold": 160
+  },
+  "rules": [
+    {
+      "id": "insufficient_depth",
+      "name": "Chưa xuống đủ sâu",
+      "condition": {
+        "metric": "knee_at_bottom",
+        "operator": ">",
+        "threshold": 100.0
+      },
+      "severity": "medium",
+      "unit": "degree",
+      "kb_tags": ["squat_depth", "range_of_motion", "quad_activation"]
+    },
+    {
+      "id": "excessive_trunk_lean",
+      "name": "Thân ngả quá nhiều về trước",
+      "condition": {
+        "metric": "trunk_at_bottom",
+        "operator": ">",
+        "threshold": 45.0
+      },
+      "severity": "high",
+      "unit": "degree",
+      "kb_tags": ["lumbar_shear_stress", "spinal_safety", "core_bracing"]
+    }
+  ]
+}
