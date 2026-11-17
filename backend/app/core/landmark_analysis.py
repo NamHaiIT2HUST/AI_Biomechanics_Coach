@@ -15,7 +15,7 @@ from app.core.phases import segment_squat_reps
 from app.core.smoothing import smooth_signal_1d
 
 
-def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5):
+def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_threshold=150.0):
     """Phân tích frame liên tục; giữ cảnh báo kể cả khi vẫn tính trên điểm yếu."""
     fps = float(data["fps"])
     width, height = float(data["width"]), float(data["height"])
@@ -63,7 +63,7 @@ def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5):
         hip.append(calculate_angle_2d(*coords[:3]))
         trunk.append(calculate_trunk_lean(coords[0], coords[1]))
     knee, hip, trunk = (smooth_signal_1d(a) for a in (knee, hip, trunk))
-    reps, _ = segment_squat_reps(knee, fps, hip_angles=hip, trunk_lean=trunk, min_duration_s=min_duration_s)
+    reps, _ = segment_squat_reps(knee, fps, hip_angles=hip, trunk_lean=trunk, min_duration_s=min_duration_s, bottom_threshold=bottom_threshold)
     low_set = set(low_visibility)
     results = []
     for rep in reps:
@@ -75,7 +75,7 @@ def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5):
     return {
         "video_name": data.get("video_name"), "fps": fps, "dominant_side": side,
         "frames": len(frames), "min_visibility": min_visibility,
-        "low_visibility_frames": len(low_visibility), "min_duration_s": min_duration_s,
+        "low_visibility_frames": len(low_visibility), "min_duration_s": min_duration_s, "bottom_threshold": bottom_threshold,
         "warning": "Landmark dưới ngưỡng vẫn được dùng; kết quả chỉ để khảo sát, chưa được kiểm chứng." if low_visibility else "Kết quả chưa được kiểm chứng bằng nhãn độc lập.",
         "reps": results,
     }
@@ -86,9 +86,10 @@ def main():
     parser.add_argument("path", type=Path)
     parser.add_argument("--min-duration", type=float, default=1.0)
     parser.add_argument("--min-visibility", type=float, default=0.5)
+    parser.add_argument("--bottom-threshold", type=float, default=150.0)
     args = parser.parse_args()
     data = json.loads(args.path.read_text(encoding="utf-8"))
-    print(json.dumps(analyze_landmarks(data, min_duration_s=args.min_duration, min_visibility=args.min_visibility), ensure_ascii=False, indent=2))
+    print(json.dumps(analyze_landmarks(data, min_duration_s=args.min_duration, min_visibility=args.min_visibility, bottom_threshold=args.bottom_threshold), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

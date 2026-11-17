@@ -7,7 +7,7 @@ Tài liệu này bổ sung lộ trình 12 tuần, dựa trên trạng thái mã 
 - `test_squat.json`: cấu hình 1,0 giây đếm 1 rep (đáy 90); cấu hình thử nghiệm 0,9 giây đếm 2 rep (đáy 90, 133). Các mốc này chưa được xác nhận bằng nhãn frame độc lập. Khoảng rep thứ hai là 118–146, tức 0,933 giây theo định nghĩa giao ngưỡng gối 160°.
 - `sample_squat.json`: cấu hình hiện tại đếm 0; cần xem video và gán nhãn trước khi kết luận đúng hay sai.
 - Landmark visibility < 0,5: 17/178 frame test và 52/180 frame sample. Baseline vẫn tính số đo từ điểm yếu và phát cảnh báo; chưa có cơ chế tự đánh giá hoặc loại số đo không tin cậy.
-- Đếm rep mặc định dưới 105° và đánh giá độ sâu 100° tạo điểm mù với các rep nông. Cần tách ngưỡng phát hiện chuyển động khỏi quy tắc đánh giá độ sâu và kiểm tra cả rung nhiễu lẫn squat nông trước khi đổi mặc định.
+- Bộ đếm nay dùng ngưỡng thử nghiệm dưới 150° để nhận chuyển động, tách khỏi quy tắc đánh giá độ sâu 100°. Ngưỡng cũ 105° vẫn chọn được qua tham số; file cấu hình squat cũ vẫn khai báo 105° và chưa được nối với CLI. Ngưỡng 150° chỉ mới kiểm thử tổng hợp, cần kiểm chứng bằng nhãn video độc lập.
 - Tín hiệu 2D phải tính theo pixel (x nhân width, y nhân height), vì khung hình không vuông. Góc 3D MediaPipe và góc ảnh 2D là các đại lượng khác nhau.
 
 ## Mốc 1 — Nhãn và kiểm chứng baseline
@@ -48,3 +48,9 @@ $env:PYTHONPATH = 'backend'
 ```
 
 CLI báo số frame độ tin cậy thấp toàn video, trong từng rep và gần frame đáy (cửa sổ ±5 frame của bộ lọc). Nó yêu cầu frame liên tục và từ chối dữ liệu thiếu pose; đây là baseline khảo sát, chưa thay cho quality gate.
+
+## Ghi chú phân đoạn hiện tại
+
+- Phát hiện cực tiểu trong từng khoảng đứng–đứng để hai rep sát nhau không loại lẫn nhau. Đoạn chuyển động bị loại hoặc chưa kết thúc mang nhãn `unknown`.
+- Ngưỡng mặc định 150°, prominence 15° và 1 giây là các tham số thử nghiệm; độ sâu 100° thuộc đánh giá form, chưa được triển khai trong baseline.
+- Notebook 03 cố định ngưỡng 105° để tái lập số liệu baseline cũ. Trên CLI, dùng `--bottom-threshold 105` để so sánh.

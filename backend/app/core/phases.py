@@ -13,6 +13,7 @@ from scipy.signal import find_peaks
 
 
 class SquatPhase(str, Enum):
+    UNKNOWN = "unknown"
     SETUP = "setup"
     ECCENTRIC = "eccentric"
     BOTTOM = "bottom"
@@ -48,7 +49,7 @@ def segment_squat_reps(
     knee_over_toe_px: Optional[Sequence[float]] = None,
     heel_rise_px: Optional[Sequence[float]] = None,
     *,
-    bottom_threshold: float = 105.0,
+    bottom_threshold: float = 150.0,
     standing_threshold: float = 160.0,
     prominence: float = 15.0,
     min_duration_s: float = 1.0,
@@ -60,6 +61,11 @@ def segment_squat_reps(
     segmentation. Optional measurements may contain NaNs and yield None when
     absent. Frame numbers are zero-based indices in the input. Lockout labels
     require measured hip extension; knee extension alone completes a rep.
+
+    The default bottom threshold of 150° is an experimental motion threshold,
+    distinct from any depth-quality rule. Incomplete/rejected motion is UNKNOWN.
+    Peaks are detected per standing-to-standing interval so nearby separate reps
+    do not suppress one another.
 
     Pause is the contiguous interval around the minimum within the configured
     tolerance. Its duration overlaps the eccentric/concentric durations, which
@@ -88,16 +94,13 @@ def segment_squat_reps(
     trunk = optional(trunk_lean, "trunk_lean")
     toe = optional(knee_over_toe_px, "knee_over_toe_px")
     heel = optional(heel_rise_px, "heel_rise_px")
-    phases = [SquatPhase.SETUP] * n
+    phases = [SquatPhase.UNKNOWN] * n
     if n == 0:
         return [], phases
-    peaks, _ = find_peaks(-knee, prominence=prominence, distance=max(1, ceil(fps)))
-    peak_set = set(peaks.tolist())
     reps = []
     # FSM: wait for standing, descend, then finish once standing is regained.
     state = "waiting"
     start = None
-    candidates = []
     for i, angle in enumerate(knee):
         if state == "waiting":
             if angle >= standing_threshold:
@@ -108,11 +111,10 @@ def segment_squat_reps(
                 start = i
             else:
                 state = "moving"
-                candidates = []
         elif state == "moving":
-            if i in peak_set and angle < bottom_threshold:
-                candidates.append(i)
             if angle >= standing_threshold:
+                local_peaks, _ = find_peaks(-knee[start:i + 1], prominence=prominence, distance=max(1, ceil(fps)))
+                candidates = [start + int(j) for j in local_peaks if knee[start + j] < bottom_threshold]
                 if candidates and (i - start) / fps >= min_duration_s:
                     bottom = min(candidates, key=lambda j: knee[j])
                     lo = hi = bottom
@@ -137,9 +139,10 @@ def segment_squat_reps(
                     phases[hi + 1:i] = [SquatPhase.CONCENTRIC] * (i - hi - 1)
                 state = "standing"
                 start = i
-    # Lockout is a measured posture, not a replacement for completion criterion.
-    if hip is not None:
-        for i in range(n):
-            if knee[i] >= standing_threshold and np.isfinite(hip[i]) and hip[i] >= 165 and phases[i] == SquatPhase.SETUP:
+    # Only standing frames are setup; aborted or incomplete motion stays unknown.
+    for i in range(n):
+        if phases[i] == SquatPhase.UNKNOWN and knee[i] >= standing_threshold:
+            phases[i] = SquatPhase.SETUP
+            if hip is not None and np.isfinite(hip[i]) and hip[i] >= 165:
                 phases[i] = SquatPhase.LOCKOUT
     return reps, phases

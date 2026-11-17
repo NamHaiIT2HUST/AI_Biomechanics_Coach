@@ -26,9 +26,22 @@ def test_three_complete_reps_and_phase_timing():
     assert SquatPhase.ECCENTRIC in phases and SquatPhase.CONCENTRIC in phases
 
 
-def test_shallow_and_incomplete_movements_not_counted():
+def test_shallow_rep_counted_and_incomplete_movement_not_counted():
     signal = np.r_[np.full(10, 170.), rep(120), np.full(10, 170.), np.linspace(170, 80, 40)]
+    reps, phases = segment_squat_reps(signal, 30)
+    assert len(reps) == 1 and reps[0].min_knee_angle == pytest.approx(120)
+    assert phases[-1] == SquatPhase.UNKNOWN
+
+
+def test_small_movement_is_not_counted():
+    signal = np.r_[np.full(10, 170.), rep(155), np.full(10, 170.)]
     assert segment_squat_reps(signal, 30)[0] == []
+
+
+def test_nearby_complete_reps_do_not_suppress_peaks():
+    signal = np.r_[np.full(5, 170.), rep(80, 10, 10), rep(90, 10, 10), np.full(5, 170.)]
+    reps, _ = segment_squat_reps(signal, 30, min_duration_s=0.5)
+    assert len(reps) == 2
 
 
 def test_fast_movement_rejected():
@@ -61,3 +74,9 @@ def test_invalid_input_rejected(signal, fps):
 def test_optional_signal_length_must_match():
     with pytest.raises(ValueError):
         segment_squat_reps([170, 90, 170], 30, hip_angles=[170])
+
+
+def test_original_depth_gate_can_be_selected_for_comparison():
+    signal = np.r_[np.full(10, 170.), rep(120), np.full(10, 170.)]
+    assert len(segment_squat_reps(signal, 30)[0]) == 1
+    assert segment_squat_reps(signal, 30, bottom_threshold=105)[0] == []
