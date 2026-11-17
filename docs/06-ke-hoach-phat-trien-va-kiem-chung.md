@@ -56,3 +56,22 @@ CLI báo số frame độ tin cậy thấp toàn video, trong từng rep và g�
 - Notebook 03 cố định ngưỡng 105° để tái lập số liệu baseline cũ. Trên CLI, dùng `--bottom-threshold 105` để so sánh.
 
 - CLI hiện đánh dấu từng rep `needs_review` khi có landmark visibility thấp trong khoảng rep hoặc vùng lân cận ±5 frame dùng bởi Savitzky–Golay. `no_low_visibility_detected` chỉ nói không phát hiện visibility thấp, không chứng minh góc đúng hoặc góc quay phù hợp. Đây là cảnh báo sơ bộ, chưa phải quality gate hoàn chỉnh.
+
+## Đánh giá rep theo nhãn thủ công
+
+Chọn đáy từng rep bằng cách xem video gốc trước khi xem output máy. Lưu kết quả riêng cùng tên video, người tập, FPS, các frame bắt đầu/đáy/kết thúc, góc quay và ghi chú frame khó nhìn. File dưới đây chỉ minh họa định dạng, **không phải nhãn thật**; thay danh sách bằng số liệu thực tế sau khi gán nhãn. Frame đánh số từ 0.
+
+```json
+{
+  "videos": [
+    {
+      "id": "video-id",
+      "fps": 30,
+      "reference_bottom_frames": [10, 50],
+      "predicted_bottom_frames": [11, 51]
+    }
+  ]
+}
+```
+
+Chạy `python -m app.core.rep_validation <duong-dan-json> --tolerance 0.2` với `PYTHONPATH=backend`. Công cụ ghép một–một trong khoảng sai lệch cho phép, báo precision/recall, chênh lệch số rep và sai lệch thời gian đáy. Nó chỉ đánh giá mốc đáy, không đánh giá đầu/cuối, chất lượng form hay sai số góc. Ngưỡng tolerance 0,2 giây là tham số thử nghiệm. Không lấy danh sách dự đoán làm nhãn tham chiếu.
