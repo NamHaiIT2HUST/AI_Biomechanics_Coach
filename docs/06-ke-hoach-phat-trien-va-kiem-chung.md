@@ -54,3 +54,5 @@ CLI báo số frame độ tin cậy thấp toàn video, trong từng rep và g�
 - Phát hiện cực tiểu trong từng khoảng đứng–đứng để hai rep sát nhau không loại lẫn nhau. Đoạn chuyển động bị loại hoặc chưa kết thúc mang nhãn `unknown`.
 - Ngưỡng mặc định 150°, prominence 15° và 1 giây là các tham số thử nghiệm; độ sâu 100° thuộc đánh giá form, chưa được triển khai trong baseline.
 - Notebook 03 cố định ngưỡng 105° để tái lập số liệu baseline cũ. Trên CLI, dùng `--bottom-threshold 105` để so sánh.
+
+- CLI hiện đánh dấu từng rep `needs_review` khi có landmark visibility thấp trong khoảng rep hoặc vùng lân cận ±5 frame dùng bởi Savitzky–Golay. `no_low_visibility_detected` chỉ nói không phát hiện visibility thấp, không chứng minh góc đúng hoặc góc quay phù hợp. Đây là cảnh báo sơ bộ, chưa phải quality gate hoàn chỉnh.

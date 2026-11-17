@@ -71,6 +71,11 @@ def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_th
         row["low_visibility_frames"] = sum(i in low_set for i in range(rep.start_frame, rep.end_frame + 1))
         # Savitzky–Golay uses an 11-frame window, so nearby low-quality points can affect the result.
         row["low_visibility_near_bottom"] = any(i in low_set for i in range(max(0, rep.bottom_frame - 5), min(len(frames), rep.bottom_frame + 6)))
+        # The filter also draws on frames just outside the detected interval.
+        influence_start = max(0, rep.start_frame - 5)
+        influence_end = min(len(frames), rep.end_frame + 6)
+        row["low_visibility_in_filter_window"] = sum(i in low_set for i in range(influence_start, influence_end))
+        row["quality_status"] = "needs_review" if row["low_visibility_in_filter_window"] else "no_low_visibility_detected"
         results.append(row)
     return {
         "video_name": data.get("video_name"), "fps": fps, "dominant_side": side,
