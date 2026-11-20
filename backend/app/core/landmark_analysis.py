@@ -92,9 +92,15 @@ def main():
     parser.add_argument("--min-duration", type=float, default=1.0)
     parser.add_argument("--min-visibility", type=float, default=0.5)
     parser.add_argument("--bottom-threshold", type=float, default=150.0)
+    parser.add_argument("--allow-partial", action="store_true", help="Analyze contiguous detected spans; report missing-frame gaps")
     args = parser.parse_args()
     data = json.loads(args.path.read_text(encoding="utf-8"))
-    print(json.dumps(analyze_landmarks(data, min_duration_s=args.min_duration, min_visibility=args.min_visibility, bottom_threshold=args.bottom_threshold), ensure_ascii=False, indent=2))
+    if args.allow_partial:
+        from app.core.partial_landmark_analysis import analyze_detected_spans
+        result = analyze_detected_spans(data, min_duration_s=args.min_duration, min_visibility=args.min_visibility, bottom_threshold=args.bottom_threshold)
+    else:
+        result = analyze_landmarks(data, min_duration_s=args.min_duration, min_visibility=args.min_visibility, bottom_threshold=args.bottom_threshold)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
