@@ -1,6 +1,7 @@
 """Module core bóc tách khung xương (Pose Estimation) sử dụng MediaPipe Pose Landmarker."""
 
 import cv2
+import math
 import numpy as np
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
@@ -100,13 +101,20 @@ class PoseEngine:
         """Trích xuất chuỗi 33 khớp từ file video MP4/MOV."""
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
+            cap.release()
             raise ValueError(f"Không thể mở file video: {video_path}")
 
-        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration_s = total_frames / fps if fps > 0 else 0.0
+        fps = float(cap.get(cv2.CAP_PROP_FPS))
+        raw_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        raw_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        raw_total = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        if (not all(math.isfinite(v) for v in (fps, raw_width, raw_height, raw_total))
+                or fps <= 0 or raw_width < 1 or raw_height < 1 or raw_total < 0):
+            cap.release()
+            raise ValueError("Video metadata has invalid FPS or dimensions")
+        width, height = int(raw_width), int(raw_height)
+        total_frames = int(raw_total)
+        duration_s = total_frames / fps
 
         options = vision.PoseLandmarkerOptions(
             base_options=self.base_options,
@@ -117,7 +125,11 @@ class PoseEngine:
             min_tracking_confidence=0.5
         )
 
-        detector = vision.PoseLandmarker.create_from_options(options)
+        try:
+            detector = vision.PoseLandmarker.create_from_options(options)
+        except Exception:
+            cap.release()
+            raise
         frames_data: List[FramePose] = []
         detected_count = 0
         frame_idx = 0

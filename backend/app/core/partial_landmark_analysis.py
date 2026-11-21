@@ -7,7 +7,8 @@ from app.core.landmark_analysis import analyze_landmarks
 
 
 def analyze_detected_spans(data: dict[str, Any], *, min_duration_s: float = 1.0,
-                           min_visibility: float = 0.5, bottom_threshold: float = 150.0):
+                           min_visibility: float = 0.5, bottom_threshold: float = 150.0,
+                           standing_threshold: float = 160.0, prominence: float = 15.0):
     """Run the strict analyzer per contiguous span, retain original frame indices.
 
     Reps crossing gaps are not reconstructed. A result with gaps is explicitly
@@ -55,7 +56,8 @@ def analyze_detected_spans(data: dict[str, Any], *, min_duration_s: float = 1.0,
             local.append(frame)
         payload = dict(data, frames=local, dominant_side=side)
         result = analyze_landmarks(payload, min_duration_s=min_duration_s,
-                                   min_visibility=min_visibility, bottom_threshold=bottom_threshold)
+                                   min_visibility=min_visibility, bottom_threshold=bottom_threshold,
+                                   standing_threshold=standing_threshold, prominence=prominence)
         analysed += end - start
         for rep in result['reps']:
             item = deepcopy(rep)
@@ -64,6 +66,13 @@ def analyze_detected_spans(data: dict[str, Any], *, min_duration_s: float = 1.0,
                 item[name] += start
             for name in ('start_time_s', 'bottom_time_s', 'end_time_s'):
                 item[name] += start / fps
+            # The 11-frame smoother has a five-frame radius; a missing pose just
+            # outside a span means the rep lacks full temporal context.
+            near_gap = ((start > 0 and item['start_frame'] - start < 5) or
+                        (end < len(frames) and end - 1 - item['end_frame'] < 5))
+            if near_gap:
+                item['quality_status'] = 'needs_review'
+                item['missing_pose_near_rep'] = True
             reps.append(item)
     missing = len(frames) - sum(good)
     return {'status': 'complete' if not missing and analysed == len(frames) else 'partial',

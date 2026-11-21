@@ -15,7 +15,8 @@ from app.core.phases import segment_squat_reps
 from app.core.smoothing import smooth_signal_1d
 
 
-def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_threshold=150.0):
+def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_threshold=150.0,
+                      standing_threshold=160.0, prominence=15.0):
     """Phân tích frame liên tục; giữ cảnh báo kể cả khi vẫn tính trên điểm yếu."""
     fps = float(data["fps"])
     width, height = float(data["width"]), float(data["height"])
@@ -63,7 +64,8 @@ def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_th
         hip.append(calculate_angle_2d(*coords[:3]))
         trunk.append(calculate_trunk_lean(coords[0], coords[1]))
     knee, hip, trunk = (smooth_signal_1d(a) for a in (knee, hip, trunk))
-    reps, _ = segment_squat_reps(knee, fps, hip_angles=hip, trunk_lean=trunk, min_duration_s=min_duration_s, bottom_threshold=bottom_threshold)
+    reps, _ = segment_squat_reps(knee, fps, hip_angles=hip, trunk_lean=trunk, min_duration_s=min_duration_s, bottom_threshold=bottom_threshold,
+                               standing_threshold=standing_threshold, prominence=prominence)
     low_set = set(low_visibility)
     results = []
     for rep in reps:

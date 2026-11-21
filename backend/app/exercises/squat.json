@@ -3,7 +3,10 @@
   "name": "Barbell / Bodyweight Squat",
   "category": "gym_lower_body",
   "camera": {
-    "recommended_views": ["side_90deg", "front_0deg"],
+    "recommended_views": [
+      "side_90deg",
+      "front_0deg"
+    ],
     "primary": "side_90deg",
     "min_fps": 30,
     "instruction": "Đặt điện thoại ngang tầm hông, cách 2-3m, quay trọn vẹn từ bên hông."
@@ -11,18 +14,29 @@
   "joints_to_track": [
     {
       "id": "knee",
-      "points": ["hip", "knee", "ankle"],
+      "points": [
+        "hip",
+        "knee",
+        "ankle"
+      ],
       "side": "both"
     },
     {
       "id": "hip",
-      "points": ["shoulder", "hip", "knee"],
+      "points": [
+        "shoulder",
+        "hip",
+        "knee"
+      ],
       "side": "both"
     },
     {
       "id": "trunk",
       "type": "vertical_angle",
-      "points": ["hip", "shoulder"]
+      "points": [
+        "hip",
+        "shoulder"
+      ]
     }
   ],
   "phases": {
@@ -43,8 +57,10 @@
   },
   "rep_counter": {
     "signal": "knee",
-    "enter_bottom_threshold": 105,
-    "exit_top_threshold": 160
+    "enter_bottom_threshold": 150,
+    "exit_top_threshold": 160,
+    "min_duration_s": 1.0,
+    "min_visibility": 0.5
   },
   "rules": [
     {
@@ -57,7 +73,11 @@
       },
       "severity": "medium",
       "unit": "degree",
-      "kb_tags": ["squat_depth", "range_of_motion", "quad_activation"]
+      "kb_tags": [
+        "squat_depth",
+        "range_of_motion",
+        "quad_activation"
+      ]
     },
     {
       "id": "excessive_trunk_lean",
@@ -69,7 +89,11 @@
       },
       "severity": "high",
       "unit": "degree",
-      "kb_tags": ["lumbar_shear_stress", "spinal_safety", "core_bracing"]
+      "kb_tags": [
+        "lumbar_shear_stress",
+        "spinal_safety",
+        "core_bracing"
+      ]
     }
   ]
 }

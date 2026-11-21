@@ -56,3 +56,12 @@ def test_no_missing_frames_matches_existing_strict_analyzer():
     partial = analyze_detected_spans(data)
     assert partial['status'] == 'complete'
     assert partial['reps'] == strict['reps']
+
+
+def test_missing_pose_near_rep_blocks_confident_evaluation():
+    rep = np.r_[np.linspace(170, 80, 20, endpoint=False), np.linspace(80, 170, 21)]
+    angles = np.r_[np.full(10, 170), rep, np.full(10, 170)]
+    result = analyze_detected_spans(make_data(angles, missing=(7,)))
+    assert len(result['reps']) == 1
+    assert result['reps'][0]['missing_pose_near_rep'] is True
+    assert result['reps'][0]['quality_status'] == 'needs_review'
