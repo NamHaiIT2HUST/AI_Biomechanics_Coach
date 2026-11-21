@@ -26,7 +26,7 @@ Không bắt buộc cho MVP kỹ thuật: model phân loại được train, LLM
 
 - Thống nhất schema cho metadata, chất lượng, rep, phép đo, nhận xét, thời gian/frame; đặt trạng thái có kết quả, không đủ dữ liệu, thất bại và lý do.
 - Nối video → PoseEngine → tín hiệu 2D có tỉ lệ pixel → lọc → rep; giữ timestamp và frame. Tách thuật toán khỏi lưu trữ và API, xử lý thiếu pose có giới hạn hoặc trả không đủ dữ liệu.
-- Thống nhất nguồn cấu hình squat; file JSON đang khai báo ngưỡng nhận rep 105° trong khi code baseline dùng 150°. Không tự coi ngưỡng nào đã được xác nhận. Thời lượng tối thiểu 1 giây hiện bỏ sót rep thứ hai trong video mẫu.
+- Thống nhất nguồn cấu hình squat; đã thống nhất ngưỡng nhận rep thử nghiệm 150° trong JSON và pipeline. Không tự coi ngưỡng nào đã được xác nhận. Thời lượng tối thiểu 1 giây hiện bỏ sót rep thứ hai trong video mẫu.
 - Dùng video mẫu sẵn có, test đơn vị và test tích hợp; mô hình Heavy phải có hướng dẫn cài riêng vì không nằm trong Git.
 - Hoàn thành khi một lệnh chạy video mẫu tạo kết quả có schema, cảnh báo phù hợp và test lỗi video/thiếu pose, không tự bịa số liệu.
 

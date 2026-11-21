@@ -7,7 +7,7 @@ Tài liệu này bổ sung lộ trình 12 tuần, dựa trên trạng thái mã 
 - `test_squat.json`: cấu hình 1,0 giây đếm 1 rep (đáy 90); cấu hình thử nghiệm 0,9 giây đếm 2 rep (đáy 90, 133). Các mốc này chưa được xác nhận bằng nhãn frame độc lập. Khoảng rep thứ hai là 118–146, tức 0,933 giây theo định nghĩa giao ngưỡng gối 160°.
 - `sample_squat.json`: cấu hình hiện tại đếm 0; cần xem video và gán nhãn trước khi kết luận đúng hay sai.
 - Landmark visibility < 0,5: 17/178 frame test và 52/180 frame sample. Baseline vẫn tính số đo từ điểm yếu và phát cảnh báo; chưa có cơ chế tự đánh giá hoặc loại số đo không tin cậy.
-- Bộ đếm nay dùng ngưỡng thử nghiệm dưới 150° để nhận chuyển động, tách khỏi quy tắc đánh giá độ sâu 100°. Ngưỡng cũ 105° vẫn chọn được qua tham số; file cấu hình squat cũ vẫn khai báo 105° và chưa được nối với CLI. Ngưỡng 150° chỉ mới kiểm thử tổng hợp, cần kiểm chứng bằng nhãn video độc lập.
+- Bộ đếm nay dùng ngưỡng thử nghiệm dưới 150° để nhận chuyển động, tách khỏi quy tắc đánh giá độ sâu 100°. Ngưỡng cũ 105° vẫn chọn được qua tham số; cấu hình squat đã đồng bộ ngưỡng thử nghiệm 150° với pipeline; CLI phân tích landmark có tham số riêng. Ngưỡng 150° chỉ mới kiểm thử tổng hợp, cần kiểm chứng bằng nhãn video độc lập.
 - Tín hiệu 2D phải tính theo pixel (x nhân width, y nhân height), vì khung hình không vuông. Góc 3D MediaPipe và góc ảnh 2D là các đại lượng khác nhau.
 
 ## Mốc 1 — Nhãn và kiểm chứng baseline

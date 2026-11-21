@@ -25,4 +25,4 @@ Smoke test trên pose đã lưu của `subject_004_squat_good_side`: kết quả
 
 ## Tiếp theo
 
-Nối video → pose → phân tích theo đoạn → evaluator thành một pipeline thống nhất, làm rõ cấu hình ngưỡng đếm 105°/150°, xử lý video/pose thiếu và chuẩn hóa schema. Sau đó xây API upload/trạng thái/kết quả và giao diện. Không cần train dài cho bước này.
+Đã nối video → pose → phân tích theo đoạn → evaluator; ngưỡng nhận rep thử nghiệm 150° được lấy từ cấu hình. Tiếp tục cải thiện xử lý video/pose thiếu và chuẩn hóa schema. Sau đó xây API upload/trạng thái/kết quả và giao diện. Không cần train dài cho bước này.
