@@ -1,0 +1,69 @@
+"""SQLite-backed analysis jobs for a single local server process."""
+from contextlib import contextmanager, closing
+from datetime import datetime, timezone
+import json
+from pathlib import Path
+import sqlite3
+
+
+def now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+class AnalysisStore:
+    def __init__(self, root: Path):
+        self.root = root
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.video_dir = self.root / 'videos'
+        self.video_dir.mkdir(exist_ok=True)
+        self.db_path = self.root / 'analyses.sqlite3'
+        with self.connect() as conn:
+            conn.execute('''CREATE TABLE IF NOT EXISTS analyses (
+                id TEXT PRIMARY KEY, status TEXT NOT NULL, created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL, video_name TEXT NOT NULL, camera_view TEXT NOT NULL,
+                result TEXT, error TEXT)''')
+
+    @contextmanager
+    def connect(self):
+        with closing(sqlite3.connect(self.db_path, timeout=30)) as conn:
+            conn.row_factory = sqlite3.Row
+            with conn:
+                yield conn
+
+    def mark_interrupted(self):
+        with self.connect() as conn:
+            conn.execute("UPDATE analyses SET status='failed', updated_at=?, error=? WHERE status IN ('queued','processing')",
+                         (now(), 'interrupted'))
+
+    def create(self, analysis_id, video_name, camera_view):
+        timestamp = now()
+        with self.connect() as conn:
+            conn.execute('INSERT INTO analyses VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                         (analysis_id, 'queued', timestamp, timestamp, video_name, camera_view, None, None))
+
+    def get(self, analysis_id):
+        with self.connect() as conn:
+            row = conn.execute('SELECT * FROM analyses WHERE id=?', (analysis_id,)).fetchone()
+        if row is None:
+            return None
+        data = dict(row)
+        if data['result'] is not None:
+            data['result'] = json.loads(data['result'])
+        return data
+
+    def start(self, analysis_id):
+        with self.connect() as conn:
+            updated = conn.execute("UPDATE analyses SET status='processing', updated_at=? WHERE id=? AND status='queued'",
+                                   (now(), analysis_id))
+            return updated.rowcount == 1
+
+    def finish(self, analysis_id, result):
+        payload = json.dumps(result, ensure_ascii=False, allow_nan=False)
+        with self.connect() as conn:
+            conn.execute("UPDATE analyses SET status='completed', updated_at=?, result=?, error=NULL WHERE id=? AND status='processing'",
+                         (now(), payload, analysis_id))
+
+    def fail(self, analysis_id, error):
+        with self.connect() as conn:
+            conn.execute("UPDATE analyses SET status='failed', updated_at=?, result=NULL, error=? WHERE id=? AND status IN ('queued','processing')",
+                         (now(), error, analysis_id))
