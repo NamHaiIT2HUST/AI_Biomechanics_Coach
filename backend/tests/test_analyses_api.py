@@ -112,3 +112,43 @@ def test_upload_collision_never_deletes_existing_temporary_file(tmp_path, monkey
         with pytest.raises(FileExistsError):
             client.post('/api/v1/analyses', files={'file': ('video.mp4', b'data', 'video/mp4')}, data={'camera_view': 'side_90deg'})
         assert existing.read_bytes() == b'keep me'
+
+
+def test_delete_rejects_processing_then_removes_completed_job_and_video(tmp_path, mp4_bytes):
+    entered = threading.Event(); release = threading.Event()
+    def runner(path, *, camera_view):
+        entered.set()
+        assert release.wait(5)
+        return {'outcome': 'no_reps_detected'}
+    storage = tmp_path / 'store'
+    with TestClient(create_app(storage_dir=storage, runner=runner)) as client:
+        upload = client.post('/api/v1/analyses', files={'file': ('input.mp4', mp4_bytes, 'video/mp4')}, data={'camera_view': 'unknown'})
+        key = upload.json()['id']
+        try:
+            assert entered.wait(5)
+            assert client.delete(f'/api/v1/analyses/{key}').status_code == 409
+            assert (storage / 'videos' / (key + '.mp4')).exists()
+        finally:
+            release.set()
+        assert wait_for(client, key, {'completed'})['status'] == 'completed'
+        assert client.delete(f'/api/v1/analyses/{key}').status_code == 204
+        assert client.get(f'/api/v1/analyses/{key}').status_code == 404
+        assert client.get(f'/api/v1/analyses/{key}/video').status_code == 404
+        assert client.delete(f'/api/v1/analyses/{key}').status_code == 404
+        assert not (storage / 'videos' / (key + '.mp4')).exists()
+
+
+def test_delete_failure_preserves_record_and_video(tmp_path, monkeypatch):
+    storage = tmp_path / 'store'; store = AnalysisStore(storage)
+    key = str(uuid4()); store.create(key, key + '.mp4', 'unknown'); store.fail(key, 'interrupted')
+    video = storage / 'videos' / (key + '.mp4'); video.write_bytes(b'keep')
+    original_unlink = Path.unlink
+    def fail_target(path, *args, **kwargs):
+        if path == video:
+            raise PermissionError('locked')
+        return original_unlink(path, *args, **kwargs)
+    monkeypatch.setattr(Path, 'unlink', fail_target)
+    with TestClient(create_app(storage_dir=storage)) as client:
+        assert client.delete(f'/api/v1/analyses/{key}').status_code == 503
+        assert client.get(f'/api/v1/analyses/{key}').status_code == 200
+        assert video.read_bytes() == b'keep'

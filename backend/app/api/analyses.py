@@ -7,7 +7,7 @@ from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import cv2
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
@@ -130,6 +130,20 @@ def get_analysis(analysis_id: UUID, request: Request):
     if row is None:
         raise HTTPException(status_code=404, detail='Analysis not found.')
     return response(row)
+
+
+@router.delete('/analyses/{analysis_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_analysis(analysis_id: UUID, request: Request):
+    try:
+        outcome = request.app.state.analysis_store.delete_terminal(str(analysis_id))
+    except (OSError, ValueError):
+        logger.exception('Could not delete analysis %s', analysis_id)
+        raise HTTPException(status_code=503, detail='Could not remove analysis video; try again after closing it.')
+    if outcome == 'not_found':
+        raise HTTPException(status_code=404, detail='Analysis not found.')
+    if outcome == 'busy':
+        raise HTTPException(status_code=409, detail='Analysis is still processing.')
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get('/analyses/{analysis_id}/video', response_class=FileResponse)

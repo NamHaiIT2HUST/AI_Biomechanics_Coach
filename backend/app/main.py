@@ -30,7 +30,7 @@ def create_app(*, storage_dir: Path | None = None, runner=None, max_upload_bytes
     app = FastAPI(title=settings.APP_NAME, version=settings.APP_VERSION,
                   description='Hệ thống phân tích video động tác gym.', lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:3000', 'http://127.0.0.1:3000'],
-                       allow_credentials=True, allow_methods=['GET', 'POST'], allow_headers=['*'])
+                       allow_credentials=True, allow_methods=['GET', 'POST', 'DELETE'], allow_headers=['*'])
     app.include_router(router)
 
     @app.get('/')
