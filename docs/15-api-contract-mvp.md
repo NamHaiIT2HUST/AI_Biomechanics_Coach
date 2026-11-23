@@ -4,7 +4,7 @@ Base path `/api/v1`. Chạy một process Uvicorn với một worker. Tác vụ 
 
 - `GET /health`: trạng thái API.
 - `GET /api/v1/exercises`: danh sách bài tập hỗ trợ; chỉ squat.
-- `POST /api/v1/analyses`: multipart form `file` (MP4/MOV), `exercise_id=squat`, `camera_view=side_90deg|front_0deg|unknown`; trả 202 và `{id,status,created_at,updated_at,result,error}`. API kiểm tra kích thước, loại file, video giải mã được và metadata; FPS thấp chỉ là cảnh báo pipeline. Không chấp nhận file lớn hơn cấu hình.
+- `POST /api/v1/analyses`: multipart form `file` (MP4/MOV), `exercise_id=squat`, `camera_view=side_90deg|front_0deg|unknown`, tùy chọn `count_mode=standard|fast` (mặc định `standard`); trả 202 và `{id,status,created_at,updated_at,result,error}`. Chế độ `fast` thử nghiệm dùng thời lượng tối thiểu 0,8 giây, có thể tăng đếm nhầm; cấu hình thực tế và hash nằm trong kết quả. API kiểm tra kích thước, loại file, video giải mã được và metadata; FPS thấp chỉ là cảnh báo pipeline. Không chấp nhận file lớn hơn cấu hình.
 - `GET /api/v1/analyses/{id}`: trạng thái `queued`, `processing`, `completed` hoặc `failed`. `result` chỉ có khi completed; `error` chỉ có khi failed. UUID không hợp lệ → 422; không tìm thấy → 404.
 - `GET /api/v1/analyses/{id}/video`: video gốc đã tải lên; 404 nếu không có. Dùng `FileResponse` hỗ trợ phát/tua tùy client.
 - `DELETE /api/v1/analyses/{id}`: xóa thủ công video và bản ghi kết quả của tác vụ `completed` hoặc `failed`; trả 204, 404 nếu không có, 409 nếu đang `queued`/`processing`, 503 nếu chưa xóa được file. Đóng video đang phát trước khi xóa. Không xóa tự động. Nếu tiến trình bị dừng đúng giữa thao tác xóa file và commit SQLite, bản ghi có thể còn nhưng video không còn; lặp lại lệnh để hoàn tất.
@@ -14,6 +14,8 @@ Lỗi input: 413 quá giới hạn, 415 đuôi không hỗ trợ, 422 tệp vide
 Kết quả phụ thuộc pipeline, mang cảnh báo ngưỡng thử nghiệm, chất lượng và trạng thái partial. `detected_rep_count` không phải số rep chắc chắn; không có rep phát hiện không đồng nghĩa không có rep.
 
 Trong `coverage`, `missing_frames` tính các frame không có pose/khớp cần thiết hoặc có tọa độ, visibility hay hình học khớp không hợp lệ; các frame này tách chuỗi phân tích. `low_visibility_frames` là số frame đã phân tích có ít nhất một khớp cần thiết dưới ngưỡng visibility. Nó không bao gồm đoạn quá ngắn bị bỏ qua, được biểu thị qua trạng thái partial và `coverage.warnings`. Trạng thái complete chỉ nói về phạm vi frame được xử lý, không khẳng định các phép đo chính xác. Kết quả cũ có thể không có trường `low_visibility_frames`.
+
+`out_of_frame_frames` đếm frame đã phân tích có ít nhất một điểm vai/hông/gối/cổ chân cần dùng nằm ngoài ảnh. Với rep bị ảnh hưởng bởi frame này trong vùng bộ lọc, đánh giá rule là `insufficient_data`. Các frame này vẫn tham gia đếm, do đó số rep có thể không chính xác. Kết quả cũ có thể thiếu trường này.
 
 `coverage.short_motion_candidates` là các đoạn đứng–đứng vượt các ngưỡng độ sâu/prominence nhưng bị loại vì ngắn hơn `min_duration_s`, gồm frame bắt đầu/đáy/kết thúc, thời lượng và thời điểm đáy. Đây là gợi ý để xem video: có thể là rep nhanh hoặc nhiễu, không cộng vào `detected_rep_count`, không có đánh giá form và không chứng minh có rep bị bỏ sót. Kết quả cũ có thể không có trường này.
 

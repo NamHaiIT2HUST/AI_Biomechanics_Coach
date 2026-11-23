@@ -23,6 +23,8 @@ Mở `http://localhost:3000`. Frontend mặc định gọi `http://127.0.0.1:800
 
 Video MP4/MOV mặc định không quá 100 MiB. Camera bên hông mới được evaluator hỗ trợ; góc quay là người dùng tự khai. Video và kết quả được lưu trên máy chạy backend, hiện không có cơ chế tự xóa. Trình duyệt có thể không phát được một số codec MOV mặc dù backend đọc được; MP4 H.264 là lựa chọn phù hợp hơn.
 
+Chọn chế độ đếm mặc định (tối thiểu 1 giây) hoặc nhanh thử nghiệm (0,8 giây). Chế độ nhanh có thể tăng cả rep phát hiện lẫn đếm nhầm; cần đối chiếu video. Chế độ và thời lượng thực tế được lưu trong kết quả. Các rep có khớp cần dùng ngoài khung hình hoặc visibility không đủ trong vùng ảnh hưởng của bộ lọc không được đánh giá theo rule.
+
 Trình duyệt lưu ID tác vụ gần nhất trong localStorage để khôi phục sau khi tải lại trang. Nút ẩn chỉ xóa ID khỏi trình duyệt; nút xóa video và kết quả yêu cầu xác nhận và xóa vĩnh viễn tác vụ đã hoàn tất/thất bại trên backend. Không thể xóa trong lúc đang xử lý; đóng các cửa sổ đang phát video nếu hệ điều hành chưa cho xóa. Nếu xóa dữ liệu trình duyệt thì không thể khôi phục tác vụ bằng cách này. Không có tài khoản hay xác thực, vì vậy chỉ dùng trên máy local tin cậy.
 
 Các thư viện đã được cài và khóa bằng `package-lock.json`. Chưa chạy build, kiểm thử UI hay end-to-end theo yêu cầu gộp kiểm thử khi hoàn thiện MVP.
