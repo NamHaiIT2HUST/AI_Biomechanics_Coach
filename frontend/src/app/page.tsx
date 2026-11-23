@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 type Rule = { rule_id: string; name: string; status: "finding" | "within_threshold" | "insufficient_data"; measured_value: number | null; benchmark_value: number; operator: string; reason: string | null; evidence_frame: number };
 type Rep = { rep_id: number; bottom_time_s: number; start_time_s: number; end_time_s: number; min_knee_angle: number | null; trunk_lean_at_bottom: number | null; assessment: Rule[] };
-type Result = { outcome: "reps_detected" | "no_reps_detected" | "insufficient_data"; detected_rep_count: number; reps: Rep[]; coverage: { status: "complete" | "partial"; missing_frames: number }; pose: { detection_rate: number }; video: { duration_s: number; fps: number; camera_view: string }; warnings: (string | null)[] };
+type Result = { outcome: "reps_detected" | "no_reps_detected" | "insufficient_data"; detected_rep_count: number; reps: Rep[]; coverage: { status: "complete" | "partial"; missing_frames: number; low_visibility_frames?: number }; pose: { detection_rate: number }; video: { duration_s: number; fps: number; camera_view: string }; warnings: (string | null)[] };
 type Job = { id: string; status: "queued" | "processing" | "completed" | "failed"; result: Result | null; error: string | null };
 
 const API = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
@@ -87,7 +87,7 @@ export default function Home() {
   async function submit() {
     if (!file || requestRef.current) return;
     requestRef.current = true;
-    setUploading(true); setError(""); setConnectionError(false); setJob(null); setSelected(null);
+    setUploading(true); setError(""); setConnectionError(false);
     const form = new FormData();
     form.append("file", file); form.append("exercise_id", "squat"); form.append("camera_view", view);
     try {
@@ -98,6 +98,7 @@ export default function Home() {
       }
       const created: Job = await response.json();
       try { localStorage.setItem("biomechanics:last-analysis", created.id); } catch { /* Storage is optional. */ }
+      setSelected(null);
       setJob(created);
     } catch (e) { setError(e instanceof TypeError ? "Mất kết nối khi gửi video. Tác vụ có thể đã được tạo; hãy kiểm tra backend trước khi gửi lại." : e instanceof Error ? e.message : "Có lỗi khi gửi video."); }
     finally { requestRef.current = false; setUploading(false); }
@@ -124,13 +125,13 @@ export default function Home() {
     <main>
       <header className="topbar"><span>WORKSPACE <b>/</b> PHÂN TÍCH</span><span className="top-right"><i /> MVP V1</span></header>
       <div className="content">
-        <div className="heading"><div><div className="eyebrow"><span /> AI BIOMECHANICS COACH</div><h1>Hiểu chuyển động.<br/><em>Tập tốt hơn.</em></h1><p>Tải video squat lên để xem từng rep, số đo và những điểm cần chú ý.</p></div><div className="heading-tag"><span>01</span><div>SQUAT<br/><small>PHÂN TÍCH VIDEO</small></div></div></div>
+        <div className="heading"><div><div className="eyebrow"><span /> AI BIOMECHANICS COACH</div><h1>Hiểu chuyển động.<br/><em>Tập tốt hơn.</em></h1><p>Tải video squat lên để xem từng rep, số đo và những điểm cần chú ý.</p></div><div className="heading-tag"><div>SQUAT<br/><small>PHÂN TÍCH VIDEO</small></div></div></div>
         <div className="workspace">
           <section className="card upload-card"><div className="card-heading"><div><span className="overline">BẮT ĐẦU TẠI ĐÂY</span><h2>Video của bạn</h2></div><span className="pill">SQUAT</span></div>
             <p className="muted">Một góc quay rõ ràng giúp phân tích hữu ích hơn.</p>
-            <input ref={inputRef} id="video-file" type="file" accept=".mp4,.mov,video/mp4,video/quicktime" onChange={e => chooseFile(e.target.files?.[0] || null)} disabled={!!busy} className="file-input" />
+            <input ref={inputRef} id="video-file" type="file" accept=".mp4,.mov,video/mp4,video/quicktime" onChange={e => { chooseFile(e.target.files?.[0] || null); e.target.value = ""; }} disabled={!!busy} className="file-input" />
             <label htmlFor="video-file" className={`dropzone ${busy ? "disabled" : ""}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (!busy) chooseFile(e.dataTransfer.files[0] || null); }}>
-              <span className="upload-icon">↑</span><strong>{file ? file.name : "Chọn video để phân tích"}</strong><span>{file ? `${(file.size / 1024 / 1024).toFixed(1)} MiB · Chọn lại video` : "hoặc kéo và thả vào đây"}</span><small>MP4 hoặc MOV · tối đa 100 MiB</small>
+              <span className="upload-icon" aria-hidden="true">▣</span><strong>{file ? file.name : "Chọn video để phân tích"}</strong><span>{file ? `${(file.size / 1024 / 1024).toFixed(1)} MiB · Chọn lại video` : "hoặc kéo và thả vào đây"}</span><small>MP4 hoặc MOV · tối đa 100 MiB</small>
             </label>
             <label className="field-label" htmlFor="camera">Góc quay của video</label>
             <div className="select-wrap"><select id="camera" value={view} onChange={e => setView(e.target.value)} disabled={!!busy}><option value="side_90deg">Nhìn từ bên hông (khuyến nghị)</option><option value="front_0deg">Nhìn từ phía trước</option><option value="unknown">Không chắc chắn</option></select></div>
@@ -139,11 +140,12 @@ export default function Home() {
             {error && <p className="message error" role="alert">{error}</p>}
             {job && <div className={`job-status ${job.status}`} role="status"><span className="status-dot"/><div><strong>{statusText[job.status]}</strong><p>{job.status === "queued" ? "Video đã được đưa vào hàng đợi." : job.status === "processing" ? "Đang trích xuất chuyển động và đánh giá từng rep." : job.status === "failed" ? job.error === "interrupted" ? "Tác vụ bị gián đoạn do backend khởi động lại. Hãy tải lại video." : "Hãy kiểm tra backend và model pose, rồi thử lại." : "Bạn có thể xem kết quả bên cạnh."}</p>{connectionError && <p>Đang mất kết nối; hệ thống sẽ tự thử lại.</p>}{!busy && <button type="button" className="forget" onClick={forgetLastAnalysis}>Ẩn kết quả trên trình duyệt</button>}</div></div>}
           </section>
-          <section className="card results-card"><div className="card-heading"><div><span className="overline">KẾT QUẢ PHÂN TÍCH</span><h2>{result ? "Xem lại chuyển động" : "Góc nhìn của bạn"}</h2></div><span className="result-index">SQUAT / 01</span></div>
-            {!result ? <div className="empty"><div className="empty-symbol"><span>◌</span><b>✳</b></div><h3>Mỗi rep đều có câu chuyện.</h3><p>Tải video lên để xem các rep được phát hiện, số đo và thời điểm cần xem lại.</p><div className="empty-tags"><span>VIDEO GỐC</span><span>PHÂN ĐOẠN REP</span><span>GÓC CHUYỂN ĐỘNG</span></div></div> : <div className="results">
+          <section className="card results-card"><div className="card-heading"><div><span className="overline">KẾT QUẢ PHÂN TÍCH</span><h2>{result ? "Xem lại chuyển động" : "Góc nhìn của bạn"}</h2></div><span className="result-index">SQUAT</span></div>
+            {!result ? <div className="empty"><div className="empty-symbol" aria-hidden="true"><svg viewBox="0 0 150 150" fill="none"><circle cx="75" cy="75" r="63" stroke="currentColor" strokeDasharray="4 7"/><circle cx="75" cy="75" r="46" stroke="currentColor" opacity=".25"/><circle cx="72" cy="35" r="8" fill="currentColor"/><path d="M72 47 L64 70 L91 77 M64 70 L48 91 L31 99 M91 77 L96 101 L116 106 M66 57 L89 61 L105 52" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="64" cy="70" r="5" fill="#d8f370"/><circle cx="91" cy="77" r="5" fill="#d8f370"/></svg></div><h3>Mỗi rep đều có câu chuyện.</h3><p>Tải video lên để xem các rep được phát hiện, số đo và thời điểm cần xem lại.</p><div className="empty-tags"><span>VIDEO GỐC</span><span>PHÂN ĐOẠN REP</span><span>GÓC CHUYỂN ĐỘNG</span></div></div> : <div className="results">
               <div className="video-wrap"><video ref={videoRef} controls preload="metadata" src={`${API}/api/v1/analyses/${job?.id}/video`}>Trình duyệt không hỗ trợ phát video.</video></div>
               <div className="result-meta"><div><span>REP ĐƯỢC PHÁT HIỆN</span><strong>{result.detected_rep_count}</strong></div><div><span>THỜI LƯỢNG</span><strong>{fmt(result.video.duration_s, "s")}</strong></div><div><span>NHẬN DIỆN POSE</span><strong>{fmt(result.pose.detection_rate * 100, "%")}</strong></div></div>
-              {result.coverage.status === "partial" && <p className="message caution">Video chỉ được phân tích một phần ({result.coverage.missing_frames} frame thiếu). Kết quả có thể chưa đầy đủ.</p>}
+              {result.coverage.status === "partial" && <p className="message caution">Video chỉ được phân tích một phần ({result.coverage.missing_frames} frame thiếu hoặc không hợp lệ; một số đoạn ngắn cũng có thể bị bỏ qua). Kết quả có thể chưa đầy đủ.</p>}
+              {!!result.coverage.low_visibility_frames && <p className="message caution">Có {result.coverage.low_visibility_frames} frame với điểm khớp quan sát kém; kết quả có thể không đáng tin cậy.</p>}
               {result.video.camera_view !== "side_90deg" && <p className="message caution">Góc quay đã chọn chưa hỗ trợ đánh giá các số đo bên hông.</p>}
               {result.video.fps < 30 && <p className="message caution">Video có {fmt(result.video.fps)} FPS, thấp hơn mức khuyến nghị 30 FPS.</p>}
               {result.outcome === "no_reps_detected" && <p className="message caution">Không phát hiện rep trong dữ liệu phân tích. Điều này không khẳng định video không có rep.</p>}
