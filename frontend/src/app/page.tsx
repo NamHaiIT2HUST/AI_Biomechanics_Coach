@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 type Rule = { rule_id: string; name: string; status: "finding" | "within_threshold" | "insufficient_data"; measured_value: number | null; benchmark_value: number; operator: string; reason: string | null; evidence_frame: number };
-type Rep = { rep_id: number; bottom_time_s: number; start_time_s: number; end_time_s: number; min_knee_angle: number | null; trunk_lean_at_bottom: number | null; assessment: Rule[] };
+type Rep = { rep_id: number; bottom_time_s: number; start_time_s: number; end_time_s: number; eccentric_duration_s?: number; concentric_duration_s?: number; pause_duration_s?: number; total_duration_s?: number; min_knee_angle: number | null; trunk_lean_at_bottom: number | null; assessment: Rule[] };
 type Result = { outcome: "reps_detected" | "no_reps_detected" | "insufficient_data"; detected_rep_count: number; reps: Rep[]; coverage: { status: "complete" | "partial"; missing_frames: number; low_visibility_frames?: number; out_of_frame_frames?: number; short_motion_candidates?: { bottom_frame: number; bottom_time_s: number; duration_s: number }[] }; config?: { count_mode?: string; parameters?: { min_duration_s?: number } }; pose: { detection_rate: number }; video: { duration_s: number; fps: number; camera_view: string }; warnings: (string | null)[] };
 type Job = { id: string; status: "queued" | "processing" | "completed" | "failed"; result: Result | null; error: string | null };
 
@@ -42,8 +42,8 @@ export default function Home() {
       try {
         const response = await fetch(`${API}/api/v1/analyses/${id}`, { signal: controller.signal, cache: "no-store" });
         if (response.status === 404 || response.status === 422) {
-          try { localStorage.removeItem("biomechanics:last-analysis"); } catch { /* Storage is optional. */ }
-          if (!controller.signal.aborted) setError("Không tìm thấy lần phân tích trước trên backend hiện tại.");
+          if (response.status === 422) { try { localStorage.removeItem("biomechanics:last-analysis"); } catch { /* Storage is optional. */ } }
+          if (!controller.signal.aborted) setError("Không tìm thấy lần phân tích trước trên backend hiện tại. Nếu đổi backend hoặc thư mục dữ liệu, hãy khôi phục cấu hình cũ và tải lại trang.");
         } else if (!response.ok) throw new Error("restore failed");
         else { const restored: Job = await response.json(); if (!controller.signal.aborted) setJob(restored); }
       } catch {
@@ -62,8 +62,8 @@ export default function Home() {
       try {
         const response = await fetch(`${API}/api/v1/analyses/${job.id}`, { signal: controller.signal, cache: "no-store" });
         if (response.status === 404 || response.status === 422) {
-          try { localStorage.removeItem("biomechanics:last-analysis"); } catch { /* Storage is optional. */ }
-          if (!controller.signal.aborted) { setJob(null); setError("Không tìm thấy tác vụ trên backend. Hãy gửi lại video."); }
+          if (response.status === 422) { try { localStorage.removeItem("biomechanics:last-analysis"); } catch { /* Storage is optional. */ } }
+          if (!controller.signal.aborted) { setJob(null); setError("Không tìm thấy tác vụ trên backend hiện tại. Kiểm tra thư mục dữ liệu hoặc gửi lại video."); }
           return;
         }
         if (!response.ok) throw new Error("poll failed");
@@ -115,6 +115,18 @@ export default function Home() {
     try { localStorage.removeItem("biomechanics:last-analysis"); } catch { /* Storage is optional. */ }
     setJob(null); setSelected(null); setError(""); setConnectionError(false);
   }
+  function exportResult() {
+    if (!job || job.status !== "completed" || !job.result) return;
+    const payload = { exported_at: new Date().toISOString(), analysis_id: job.id, result: job.result };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `squat-analysis-${job.id}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   async function deleteAnalysis() {
     if (!job || deleting || !window.confirm("Xóa vĩnh viễn video và kết quả phân tích này khỏi backend?")) return;
     setDeleting(true); setError("");
@@ -159,7 +171,7 @@ export default function Home() {
             {error && <p className="message error" role="alert">{error}</p>}
             {job && <div className={`job-status ${job.status}`} role="status"><span className="status-dot"/><div><strong>{deleting ? "Đang xóa dữ liệu..." : statusText[job.status]}</strong><p>{job.status === "queued" ? "Video đã được đưa vào hàng đợi." : job.status === "processing" ? "Đang trích xuất chuyển động và đánh giá từng rep." : job.status === "failed" ? job.error === "interrupted" ? "Tác vụ bị gián đoạn do backend khởi động lại. Hãy tải lại video." : "Hãy kiểm tra backend và model pose, rồi thử lại." : "Bạn có thể xem kết quả bên cạnh."}</p>{connectionError && <p>Đang mất kết nối; hệ thống sẽ tự thử lại.</p>}{!busy && <div className="job-actions"><button type="button" className="forget" onClick={forgetLastAnalysis}>Ẩn trên trình duyệt</button><button type="button" className="forget delete-action" onClick={deleteAnalysis}>Xóa video và kết quả</button></div>}</div></div>}
           </section>
-          <section className="card results-card"><div className="card-heading"><div><span className="overline">KẾT QUẢ PHÂN TÍCH</span><h2>{result ? "Xem lại chuyển động" : "Góc nhìn của bạn"}</h2></div><span className="result-index">SQUAT</span></div>
+          <section className="card results-card"><div className="card-heading"><div><span className="overline">KẾT QUẢ PHÂN TÍCH</span><h2>{result ? "Xem lại chuyển động" : "Góc nhìn của bạn"}</h2></div>{result ? <button type="button" className="export-result" onClick={exportResult}>Tải báo cáo JSON</button> : <span className="result-index">SQUAT</span>}</div>
             {!result ? <div className="empty"><div className="empty-symbol" aria-hidden="true"><svg viewBox="0 0 150 150" fill="none"><circle cx="75" cy="75" r="63" stroke="currentColor" strokeDasharray="4 7"/><circle cx="75" cy="75" r="46" stroke="currentColor" opacity=".25"/><circle cx="72" cy="35" r="8" fill="currentColor"/><path d="M72 47 L64 70 L91 77 M64 70 L48 91 L31 99 M91 77 L96 101 L116 106 M66 57 L89 61 L105 52" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="64" cy="70" r="5" fill="#d8f370"/><circle cx="91" cy="77" r="5" fill="#d8f370"/></svg></div><h3>Mỗi rep đều có câu chuyện.</h3><p>Tải video lên để xem các rep được phát hiện, số đo và thời điểm cần xem lại.</p><div className="empty-tags"><span>VIDEO GỐC</span><span>PHÂN ĐOẠN REP</span><span>GÓC CHUYỂN ĐỘNG</span></div></div> : <div className="results">
               <div className="video-wrap"><video ref={videoRef} controls preload="metadata" src={`${API}/api/v1/analyses/${job?.id}/video`}>Trình duyệt không hỗ trợ phát video.</video></div>
               <div className="result-meta"><div><span>REP ĐƯỢC PHÁT HIỆN</span><strong>{result.detected_rep_count}</strong></div><div><span>THỜI LƯỢNG</span><strong>{fmt(result.video.duration_s, "s")}</strong></div><div><span>NHẬN DIỆN POSE</span><strong>{fmt(result.pose.detection_rate * 100, "%")}</strong></div></div>
@@ -172,7 +184,7 @@ export default function Home() {
               {result.outcome === "no_reps_detected" && <p className="message caution">Không phát hiện rep trong dữ liệu phân tích. Điều này không khẳng định video không có rep.</p>}
               {result.outcome === "insufficient_data" && <p className="message caution">Không đủ dữ liệu để phân tích. Hãy thử video có đủ cơ thể và ánh sáng rõ hơn.</p>}
               {!!result.coverage.short_motion_candidates?.length && <div className="message caution"><strong>Có chuyển động ngắn cần xem lại</strong><p>Hệ thống đã loại các đoạn này vì thời lượng dưới ngưỡng. Chúng có thể là rep nhanh hoặc nhiễu và chưa được tính vào kết quả.</p><div className="candidate-links">{result.coverage.short_motion_candidates.map(candidate => <button type="button" key={candidate.bottom_frame} onClick={() => { if (videoRef.current) { videoRef.current.currentTime = candidate.bottom_time_s; videoRef.current.focus(); } }}>Xem tại {fmt(candidate.bottom_time_s, "s")} (dài {fmt(candidate.duration_s, "s")})</button>)}</div></div>}
-              {result.reps.length > 0 && <><div className="section-title"><div><span className="overline">CHI TIẾT</span><h3>Các rep phát hiện</h3></div><span>Nhấn để tua đến đáy</span></div><div className="reps">{result.reps.map(rep => <article className={`rep ${selected === rep.rep_id ? "selected" : ""}`} key={rep.rep_id}><button type="button" className="rep-header" onClick={() => selectRep(rep)}><span className="rep-number">{String(rep.rep_id).padStart(2, "0")}</span><span><strong>Rep {rep.rep_id}</strong><small>Điểm đáy · {time(rep.bottom_time_s)}</small></span><span className="seek">Xem video</span></button><div className="measurements"><span>Góc gối ở đáy <b>{fmt(rep.assessment.find(r => r.rule_id === "insufficient_depth")?.measured_value, "°")}</b></span><span>Độ ngả thân ở đáy <b>{fmt(rep.assessment.find(r => r.rule_id === "excessive_trunk_lean")?.measured_value, "°")}</b></span></div><div className="rules">{rep.assessment.map(rule => <div className="rule" key={rule.rule_id}><div className="rule-title"><strong>{ruleNames[rule.rule_id] || rule.name}</strong><span className={`rule-status ${rule.status}`}>{rule.status === "finding" ? "Vượt ngưỡng thử nghiệm" : rule.status === "within_threshold" ? "Trong ngưỡng thử nghiệm" : "Chưa đủ dữ liệu"}</span></div>{rule.measured_value !== null && <p>Số đo {fmt(rule.measured_value, "°")} · Ngưỡng so sánh {fmt(rule.benchmark_value, "°")}</p>}{rule.status === "finding" && cues[rule.rule_id] && <p className="cue">{cues[rule.rule_id]}</p>}{rule.status === "insufficient_data" && <p>Chưa thể đánh giá quy tắc này từ góc quay hoặc chất lượng pose hiện tại.</p>}</div>)}</div></article>)}</div></>}
+              {result.reps.length > 0 && <><div className="section-title"><div><span className="overline">CHI TIẾT</span><h3>Các rep phát hiện</h3></div><span>Nhấn để tua đến đáy</span></div><div className="reps">{result.reps.map(rep => <article className={`rep ${selected === rep.rep_id ? "selected" : ""}`} key={rep.rep_id}><button type="button" className="rep-header" onClick={() => selectRep(rep)}><span className="rep-number">{String(rep.rep_id).padStart(2, "0")}</span><span><strong>Rep {rep.rep_id}</strong><small>Điểm đáy · {time(rep.bottom_time_s)}</small></span><span className="seek">Xem video</span></button><div className="measurements"><span>Góc gối ở đáy <b>{fmt(rep.assessment.find(r => r.rule_id === "insufficient_depth")?.measured_value, "°")}</b></span><span>Độ ngả thân ở đáy <b>{fmt(rep.assessment.find(r => r.rule_id === "excessive_trunk_lean")?.measured_value, "°")}</b></span></div>{typeof rep.eccentric_duration_s === "number" && typeof rep.concentric_duration_s === "number" && <div className="tempo"><strong>Thời gian từng pha</strong><div className="tempo-values"><span>Hạ xuống <b>{fmt(rep.eccentric_duration_s, "s")}</b></span><span>Đứng lên <b>{fmt(rep.concentric_duration_s, "s")}</b></span><span>Dừng gần đáy <b>{fmt(rep.pause_duration_s, "s")}</b></span></div><small>Thời gian gần đáy có thể trùng với pha hạ và đứng lên; không cộng thêm vào tổng.</small></div>}<div className="rules">{rep.assessment.map(rule => <div className="rule" key={rule.rule_id}><div className="rule-title"><strong>{ruleNames[rule.rule_id] || rule.name}</strong><span className={`rule-status ${rule.status}`}>{rule.status === "finding" ? "Vượt ngưỡng thử nghiệm" : rule.status === "within_threshold" ? "Trong ngưỡng thử nghiệm" : "Chưa đủ dữ liệu"}</span></div>{rule.measured_value !== null && <p>Số đo {fmt(rule.measured_value, "°")} · Ngưỡng so sánh {fmt(rule.benchmark_value, "°")}</p>}{rule.status === "finding" && cues[rule.rule_id] && <p className="cue">{cues[rule.rule_id]}</p>}{rule.status === "insufficient_data" && <p>Chưa thể đánh giá quy tắc này từ góc quay hoặc chất lượng pose hiện tại.</p>}</div>)}</div></article>)}</div></>}
               <p className="disclaimer">Các ngưỡng đang trong giai đoạn thử nghiệm; kết quả chỉ hỗ trợ tham khảo, không phải chẩn đoán y khoa. Số rep có thể bị bỏ sót. Mốc thời gian được tính theo FPS danh nghĩa và có thể lệch trên một số video.</p>
             </div>}
           </section>

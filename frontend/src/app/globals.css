@@ -3,6 +3,7 @@
 .forget{border:0;padding:0;background:transparent;color:#456b50;text-decoration:underline;font-size:13px;margin-top:9px;text-underline-offset:3px}.forget:focus-visible{outline:2px solid #718d55;outline-offset:3px}
 .job-actions{display:flex;gap:15px;flex-wrap:wrap}.delete-action{color:#984b3b}
 .candidate-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.candidate-links button{background:#fff;border:1px solid #ddc98d;border-radius:6px;padding:7px 10px;color:#674f20;font-size:14px}.candidate-links button:focus-visible{outline:3px solid #a27c28;outline-offset:2px}
+.export-result{border:1px solid #cddfce;border-radius:8px;background:#f2f8ef;color:#2c5a3c;padding:9px 12px;font-size:13px;font-weight:700;white-space:nowrap}.export-result:hover{background:#e4f2dd}.export-result:focus-visible{outline:3px solid #8aad68;outline-offset:3px}.tempo{margin-top:14px;padding:12px;background:#f5f8f3;border-radius:8px;font-size:14px}.tempo-values{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:8px;color:#607568}.tempo-values b{color:#284b35}.tempo small{display:block;line-height:1.5;color:#687e6e;margin-top:8px}
 
 /* A quiet, data-first workspace with a stronger athletic identity. */
 :root{--ink:#182922;--muted:#63746b;--lime:#d8f370;--line:#dfe8df;--green:#153e30}
