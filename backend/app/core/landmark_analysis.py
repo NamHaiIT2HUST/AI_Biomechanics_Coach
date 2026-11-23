@@ -15,6 +15,20 @@ from app.core.phases import segment_squat_reps
 from app.core.smoothing import smooth_signal_1d
 
 
+def _smoothing_support(start, end, n):
+    """Inclusive input interval influencing outputs start..end (Savgol interp)."""
+    if n <= 3:
+        return start, end
+    win = min(11, n if n % 2 else n - 1)
+    half = win // 2
+    lo, hi = max(0, start - half), min(n - 1, end + half)
+    if start < half:
+        lo, hi = 0, max(hi, win - 1)
+    if end >= n - half:
+        lo, hi = min(lo, n - win), n - 1
+    return lo, hi
+
+
 def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_threshold=150.0,
                       standing_threshold=160.0, prominence=15.0):
     """Phân tích frame liên tục; giữ cảnh báo kể cả khi vẫn tính trên điểm yếu."""
@@ -44,13 +58,13 @@ def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_th
     if side not in ("left", "right"):
         raise ValueError("dominant_side phải là left hoặc right")
     knee, hip, trunk = [], [], []
-    low_visibility = []
+    low_visibility, out_of_frame = [], []
     for i, frame in enumerate(frames):
         points = {p.get("name"): p for p in frame.get("landmarks", [])}
         names = [side + "_" + joint for joint in joint_names]
         if not frame.get("is_detected") or any(name not in points for name in names):
             raise ValueError(f"Frame {i} thiếu pose hoặc khớp; chưa hỗ trợ nội suy có kiểm soát")
-        coords, visibility = [], []
+        coords, visibility, outside = [], [], False
         for name in names:
             point = points[name]
             x, y, v = float(point["x"]), float(point["y"]), float(point.get("visibility", 0))
@@ -58,6 +72,9 @@ def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_th
                 raise ValueError(f"Frame {i} có tọa độ hoặc visibility không hợp lệ")
             coords.append((x * width, y * height))
             visibility.append(v)
+            outside |= not (0 <= x <= 1 and 0 <= y <= 1)
+        if outside:
+            out_of_frame.append(i)
         if min(visibility) < min_visibility:
             low_visibility.append(i)
         knee.append(calculate_angle_2d(*coords[1:]))
@@ -69,22 +86,22 @@ def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_th
                                standing_threshold=standing_threshold, prominence=prominence,
                                short_motion_candidates=short_candidates)
     low_set = set(low_visibility)
+    outside_set = set(out_of_frame)
     results = []
     for rep in reps:
         row = asdict(rep)
         row["low_visibility_frames"] = sum(i in low_set for i in range(rep.start_frame, rep.end_frame + 1))
-        # Savitzky–Golay uses an 11-frame window, so nearby low-quality points can affect the result.
-        row["low_visibility_near_bottom"] = any(i in low_set for i in range(max(0, rep.bottom_frame - 5), min(len(frames), rep.bottom_frame + 6)))
-        # The filter also draws on frames just outside the detected interval.
-        influence_start = max(0, rep.start_frame - 5)
-        influence_end = min(len(frames), rep.end_frame + 6)
-        row["low_visibility_in_filter_window"] = sum(i in low_set for i in range(influence_start, influence_end))
-        row["quality_status"] = "needs_review" if row["low_visibility_in_filter_window"] else "no_low_visibility_detected"
+        bottom_lo, bottom_hi = _smoothing_support(rep.bottom_frame, rep.bottom_frame, len(frames))
+        row["low_visibility_near_bottom"] = any(i in low_set for i in range(bottom_lo, bottom_hi + 1))
+        influence_start, influence_end = _smoothing_support(rep.start_frame, rep.end_frame, len(frames))
+        row["low_visibility_in_filter_window"] = sum(i in low_set for i in range(influence_start, influence_end + 1))
+        row["out_of_frame_in_filter_window"] = sum(i in outside_set for i in range(influence_start, influence_end + 1))
+        row["quality_status"] = "needs_review" if row["low_visibility_in_filter_window"] or row["out_of_frame_in_filter_window"] else "no_low_visibility_detected"
         results.append(row)
     return {
         "video_name": data.get("video_name"), "fps": fps, "dominant_side": side,
         "frames": len(frames), "min_visibility": min_visibility,
-        "low_visibility_frames": len(low_visibility), "min_duration_s": min_duration_s, "bottom_threshold": bottom_threshold,
+        "low_visibility_frames": len(low_visibility), "out_of_frame_frames": len(out_of_frame), "min_duration_s": min_duration_s, "bottom_threshold": bottom_threshold,
         "warning": "Landmark dưới ngưỡng vẫn được dùng; kết quả chỉ để khảo sát, chưa được kiểm chứng." if low_visibility else "Kết quả chưa được kiểm chứng bằng nhãn độc lập.",
         "reps": results, "short_motion_candidates": short_candidates,
     }

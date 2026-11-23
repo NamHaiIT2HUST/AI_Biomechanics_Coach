@@ -73,7 +73,7 @@ def analyze_detected_spans(data: dict[str, Any], *, min_duration_s: float = 1.0,
         elif not valid and start is not None:
             spans.append((start, index))
             start = None
-    reps, short_candidates, analysed, low_visibility_frames, warnings = [], [], 0, 0, []
+    reps, short_candidates, analysed, low_visibility_frames, out_of_frame_frames, warnings = [], [], 0, 0, 0, []
     for start, end in spans:
         if end - start < 3:
             warnings.append({'start_frame': start, 'end_frame': end - 1, 'reason': 'span_too_short'})
@@ -89,6 +89,7 @@ def analyze_detected_spans(data: dict[str, Any], *, min_duration_s: float = 1.0,
                                    standing_threshold=standing_threshold, prominence=prominence)
         analysed += end - start
         low_visibility_frames += result['low_visibility_frames']
+        out_of_frame_frames += result['out_of_frame_frames']
         for candidate in result['short_motion_candidates']:
             item = dict(candidate)
             for name in ('start_frame', 'bottom_frame', 'end_frame'):
@@ -114,6 +115,7 @@ def analyze_detected_spans(data: dict[str, Any], *, min_duration_s: float = 1.0,
     return {'status': 'complete' if not missing and analysed == len(frames) else 'partial',
             'dominant_side': side, 'total_frames': len(frames), 'missing_frames': missing,
             'analyzed_frames': analysed, 'low_visibility_frames': low_visibility_frames,
+            'out_of_frame_frames': out_of_frame_frames,
             'short_motion_candidates': short_candidates,
             'spans': [{'start_frame': a, 'end_frame': b - 1} for a, b in spans],
             'warnings': warnings, 'reps': reps,

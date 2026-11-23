@@ -96,10 +96,12 @@ def analyze_squat_video(video_path, *, camera_view, config=None, engine=None):
                  'dominant_side': analysis['dominant_side']},
         'coverage': {'status': analysis['status'], 'missing_frames': analysis['missing_frames'],
                      'analyzed_frames': analysis['analyzed_frames'], 'low_visibility_frames': analysis['low_visibility_frames'],
+                     'out_of_frame_frames': analysis['out_of_frame_frames'],
                      'short_motion_candidates': analysis['short_motion_candidates'],
                      'spans': analysis['spans'],
                      'warnings': analysis['warnings']},
         'config': {'sha256': hashlib.sha256(canonical_config).hexdigest(), 'parameters': params,
+                   'count_mode': config.get('rep_counter', {}).get('mode', 'configured'),
                    'experimental': True},
         'detected_rep_count': len(reps), 'reps': reps, 'warnings': warnings,
     }

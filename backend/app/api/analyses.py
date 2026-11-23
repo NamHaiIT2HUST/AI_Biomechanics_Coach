@@ -50,12 +50,18 @@ def check_video(path: Path):
         capture.release()
 
 
-def process_job(store, analysis_id: str, runner):
+def process_job(store, analysis_id: str, runner, count_mode: str = 'standard'):
     if not store.start(analysis_id):
         return
     row = store.get(analysis_id)
     try:
-        result = runner(store.video_dir / row['video_name'], camera_view=row['camera_view'])
+        kwargs = {'camera_view': row['camera_view']}
+        if count_mode == 'fast':
+            config = load_squat_config()
+            config['rep_counter']['min_duration_s'] = 0.8
+            config['rep_counter']['mode'] = 'fast'
+            kwargs['config'] = config
+        result = runner(store.video_dir / row['video_name'], **kwargs)
         store.finish(analysis_id, result)
     except Exception:
         logger.exception('Analysis %s failed', analysis_id)
@@ -74,6 +80,7 @@ async def create_analysis(
     file: UploadFile = File(...),
     exercise_id: Literal['squat'] = Form('squat'),
     camera_view: CameraView = Form(...),
+    count_mode: Literal['standard', 'fast'] = Form('standard'),
 ):
     extension = Path(file.filename or '').suffix.lower()
     if extension not in ('.mp4', '.mov'):
@@ -110,7 +117,7 @@ async def create_analysis(
         store.create(analysis_id, video_name, camera_view)
         stored = True
         try:
-            request.app.state.analysis_executor.submit(process_job, store, analysis_id, request.app.state.analysis_runner)
+            request.app.state.analysis_executor.submit(process_job, store, analysis_id, request.app.state.analysis_runner, count_mode)
         except RuntimeError as exc:
             store.fail(analysis_id, 'worker_unavailable')
             raise HTTPException(status_code=503, detail='Analysis worker is unavailable.') from exc

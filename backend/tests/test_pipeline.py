@@ -65,6 +65,19 @@ def test_configuration_changes_rep_detection_and_is_not_hardcoded(tmp_path):
     assert result['config']['parameters']['bottom_threshold'] == 105
 
 
+def test_config_hash_and_effective_duration_change_with_experimental_mode(tmp_path):
+    video = tmp_path / 'source.mp4'; video.write_bytes(b'stub')
+    standard = load_squat_config()
+    fast = deepcopy(standard)
+    fast['rep_counter'].update(mode='fast', min_duration_s=0.8)
+    a = analyze_squat_video(video, camera_view='side_90deg', engine=FakeEngine(), config=standard)
+    b = analyze_squat_video(video, camera_view='side_90deg', engine=FakeEngine(), config=fast)
+    assert a['config']['count_mode'] == 'standard'
+    assert b['config']['count_mode'] == 'fast'
+    assert b['config']['parameters']['min_duration_s'] == 0.8
+    assert a['config']['sha256'] != b['config']['sha256']
+
+
 def test_gap_and_wrong_camera_are_exposed(tmp_path):
     video = tmp_path / 'source.mp4'; video.write_bytes(b'stub')
     result = analyze_squat_video(video, camera_view='front_0deg', engine=FakeEngine(missing=(2,)))
@@ -72,6 +85,19 @@ def test_gap_and_wrong_camera_are_exposed(tmp_path):
     assert result['coverage']['missing_frames'] == 1
     assert result['reps'][0]['assessment'][0]['reason'] == 'unsupported_camera_view'
     assert 'not complete' in result['warnings'][0]
+
+
+def test_out_of_frame_keypoint_blocks_rep_assessment(tmp_path):
+    class OutsideEngine(FakeEngine):
+        def extract_from_video(self, path):
+            extraction = super().extract_from_video(path)
+            extraction.frames[30]['landmarks'][0]['x'] = -0.1
+            return extraction
+    video = tmp_path / 'source.mp4'; video.write_bytes(b'stub')
+    result = analyze_squat_video(video, camera_view='side_90deg', engine=OutsideEngine())
+    assert result['coverage']['out_of_frame_frames'] == 1
+    assert result['reps'][0]['quality_status'] == 'needs_review'
+    assert all(rule['status'] == 'insufficient_data' for rule in result['reps'][0]['assessment'])
 
 
 def test_missing_pose_is_insufficient_data_not_success(tmp_path):

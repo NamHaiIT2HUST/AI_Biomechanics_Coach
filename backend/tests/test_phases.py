@@ -44,6 +44,19 @@ def test_nearby_complete_reps_do_not_suppress_peaks():
     assert len(reps) == 2
 
 
+def test_fast_mode_recovers_fast_cycle_without_counting_tiny_or_incomplete_motion():
+    quick = rep(80, 14, 14)  # The threshold-crossing interval is shorter than the full wave.
+    jitter = rep(155, 4, 4)
+    truncated = np.linspace(170, 80, 15)
+    signal = np.r_[np.full(5, 170.), quick, np.full(5, 170.), jitter, np.full(5, 170.), truncated]
+    standard, _ = segment_squat_reps(signal, 30, min_duration_s=1.0)
+    fast, phases = segment_squat_reps(signal, 30, min_duration_s=0.8)
+    assert standard == []
+    assert len(fast) == 1
+    assert 0.8 <= fast[0].total_duration_s < 1.0
+    assert phases[-1] == SquatPhase.UNKNOWN
+
+
 def test_fast_movement_rejected():
     signal = np.r_[np.full(5, 170.), rep(80, 8, 8), np.full(5, 170.)]
     assert segment_squat_reps(signal, 30)[0] == []

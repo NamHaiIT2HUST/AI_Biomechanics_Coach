@@ -49,3 +49,11 @@ def test_low_visibility_in_smoothing_window_marks_rep_for_review():
     assert result["reps"][0]["low_visibility_in_filter_window"] == 1
     data["frames"][25]["landmarks"][2]["visibility"] = 0.9
     assert analyze_landmarks(data)["reps"][0]["quality_status"] == "no_low_visibility_detected"
+
+
+def test_smoothing_support_accounts_for_edge_polynomial_window():
+    from app.core.landmark_analysis import _smoothing_support
+    assert _smoothing_support(0, 2, 20) == (0, 10)
+    assert _smoothing_support(17, 19, 20) == (9, 19)
+    assert _smoothing_support(8, 10, 20) == (3, 15)
+    assert _smoothing_support(0, 1, 3) == (0, 1)

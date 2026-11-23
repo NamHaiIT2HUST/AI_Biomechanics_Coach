@@ -56,6 +56,7 @@
     }
   },
   "rep_counter": {
+    "mode": "standard",
     "signal": "knee",
     "enter_bottom_threshold": 150,
     "exit_top_threshold": 160,
@@ -65,7 +66,7 @@
   "rules": [
     {
       "id": "insufficient_depth",
-      "name": "Chưa xuống đủ sâu",
+      "name": "Góc gối tại đáy",
       "condition": {
         "metric": "knee_at_bottom",
         "operator": ">",
@@ -81,7 +82,7 @@
     },
     {
       "id": "excessive_trunk_lean",
-      "name": "Thân ngả quá nhiều về trước",
+      "name": "Độ ngả thân tại đáy",
       "condition": {
         "metric": "trunk_at_bottom",
         "operator": ">",

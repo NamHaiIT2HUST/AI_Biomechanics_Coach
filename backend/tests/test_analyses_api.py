@@ -152,3 +152,18 @@ def test_delete_failure_preserves_record_and_video(tmp_path, monkeypatch):
         assert client.delete(f'/api/v1/analyses/{key}').status_code == 503
         assert client.get(f'/api/v1/analyses/{key}').status_code == 200
         assert video.read_bytes() == b'keep'
+
+
+def test_fast_mode_passes_explicit_effective_config_and_rejects_unknown_mode(tmp_path, mp4_bytes):
+    seen = []
+    def runner(path, *, camera_view, config):
+        seen.append((camera_view, config['rep_counter']['mode'], config['rep_counter']['min_duration_s']))
+        return {'outcome': 'no_reps_detected'}
+    with TestClient(create_app(storage_dir=tmp_path / 'store', runner=runner)) as client:
+        files = {'file': ('video.mp4', mp4_bytes, 'video/mp4')}
+        invalid = client.post('/api/v1/analyses', files=files, data={'camera_view': 'side_90deg', 'count_mode': 'invalid'})
+        assert invalid.status_code == 422
+        response = client.post('/api/v1/analyses', files=files, data={'camera_view': 'side_90deg', 'count_mode': 'fast'})
+        assert response.status_code == 202
+        assert wait_for(client, response.json()['id'], {'completed', 'failed'})['status'] == 'completed'
+    assert seen == [('side_90deg', 'fast', 0.8)]

@@ -32,6 +32,11 @@ def test_low_confidence_and_wrong_view_never_produce_findings():
     assert {r['reason'] for r in result['rules']} == {'unsupported_camera_view'}
 
 
+def test_rule_labels_are_measurements_not_universal_technique_judgments():
+    result = evaluate_squat(rep(), CONFIG, camera_view='side_90deg')
+    assert [r['name'] for r in result['rules']] == ['Góc gối tại đáy', 'Độ ngả thân tại đáy']
+
+
 def test_invalid_rule_config_fails_closed():
     with pytest.raises(ValueError, match='Unsupported'):
         evaluate_squat(rep(), {'id': 'squat', 'rules': [{'id': 'x', 'condition': {'metric': 'made_up', 'operator': '>', 'threshold': 1}}]}, camera_view='side_90deg')
