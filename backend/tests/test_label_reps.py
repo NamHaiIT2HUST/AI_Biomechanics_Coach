@@ -27,3 +27,13 @@ def test_save_writes_validated_annotations(tmp_path):
     data = {'schema_version': 1, 'videos': []}
     module.save_tasks(path, data)
     assert json.loads(path.read_text(encoding='utf8')) == data
+
+
+def test_held_out_annotations_require_explicit_permission_to_save(tmp_path):
+    path = tmp_path / 'test.json'
+    data = {'schema_version': 1, 'videos': [{'id': 'x', 'split': 'test', 'fps': 30,
+            'frame_count': 100, 'annotation_status': 'unreviewed', 'reps': []}]}
+    with pytest.raises(ValueError):
+        module.save_tasks(path, data)
+    module.save_tasks(path, data, allow_test=True)
+    assert json.loads(path.read_text(encoding='utf8')) == data

@@ -48,7 +48,7 @@ def build_tasks(rows, base):
     return {'schema_version': 1, 'description': 'Development only; no test subjects.', 'videos': tasks}
 
 
-def validate_tasks(data, *, require_complete=False):
+def validate_tasks(data, *, require_complete=False, allow_test=False):
     """Validate reviewed reference marks. Empty list means zero reps only if reviewed."""
     if data.get('schema_version') != 1 or not isinstance(data.get('videos'), list):
         raise ValueError('Invalid annotation schema')
@@ -58,7 +58,8 @@ def validate_tasks(data, *, require_complete=False):
         if not isinstance(vid, str) or not vid or vid in ids:
             raise ValueError('Missing or duplicate video id')
         ids.add(vid)
-        if video.get('split') not in ('train', 'validation'):
+        allowed_splits = ('train', 'validation', 'test') if allow_test else ('train', 'validation')
+        if video.get('split') not in allowed_splits:
             raise ValueError(f'{vid}: test and unassigned videos are not development tasks')
         status = video.get('annotation_status')
         if status not in ('unreviewed', 'reviewed', 'needs_review'):
@@ -94,6 +95,7 @@ def main():
     check = subs.add_parser('validate')
     check.add_argument('file', type=Path)
     check.add_argument('--require-complete', action='store_true')
+    check.add_argument('--allow-test', action='store_true', help='Explicitly validate held-out test tasks')
     args = parser.parse_args()
     if args.command == 'create':
         if args.output.exists():
@@ -107,7 +109,7 @@ def main():
         print(f'Created {len(data["videos"])} unreviewed video tasks: {args.output}')
     else:
         data = json.loads(args.file.read_text(encoding='utf8'))
-        count = validate_tasks(data, require_complete=args.require_complete)
+        count = validate_tasks(data, require_complete=args.require_complete, allow_test=args.allow_test)
         remaining = sum(v['annotation_status'] != 'reviewed' for v in data['videos'])
         print(f'Validated {count} tasks; {remaining} still need review.')
 

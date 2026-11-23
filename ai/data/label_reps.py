@@ -13,8 +13,8 @@ import cv2
 from rep_annotation_tasks import DEFAULT_OUTPUT, PREPARED, sha256_file, validate_tasks
 
 
-def save_tasks(path, data):
-    validate_tasks(data)
+def save_tasks(path, data, *, allow_test=False):
+    validate_tasks(data, allow_test=allow_test)
     tmp = path.with_name(path.name + '.tmp')
     if tmp.exists():
         raise FileExistsError(f'Refusing to overwrite temporary file: {tmp}')
@@ -27,9 +27,9 @@ def save_tasks(path, data):
             tmp.unlink()
 
 
-def label(tasks_path, video_id, annotator):
+def label(tasks_path, video_id, annotator, *, allow_test=False):
     data = json.loads(tasks_path.read_text(encoding='utf8'))
-    validate_tasks(data)
+    validate_tasks(data, allow_test=allow_test)
     matches = [v for v in data['videos'] if v['id'] == video_id]
     if len(matches) != 1:
         raise ValueError(f'Video not found: {video_id}')
@@ -96,7 +96,7 @@ def label(tasks_path, video_id, annotator):
                 video['reps'] = reps
                 video['annotator'] = annotator
                 video['annotation_status'] = 'reviewed' if key == ord('r') else 'needs_review'
-                save_tasks(tasks_path, data)
+                save_tasks(tasks_path, data, allow_test=allow_test)
                 return True
     finally:
         capture.release()
@@ -108,10 +108,11 @@ def main():
     parser.add_argument('--tasks', type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument('--id', required=True)
     parser.add_argument('--annotator', required=True)
+    parser.add_argument('--allow-test', action='store_true', help='Explicitly allow a held-out test annotation task')
     args = parser.parse_args()
     if not args.annotator.strip():
         parser.error('annotator must not be empty')
-    print('Saved' if label(args.tasks, args.id, args.annotator) else 'Exited without saving')
+    print('Saved' if label(args.tasks, args.id, args.annotator, allow_test=args.allow_test) else 'Exited without saving')
 
 
 if __name__ == '__main__':

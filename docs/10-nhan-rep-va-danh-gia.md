@@ -42,16 +42,16 @@ Lệnh thứ hai chỉ thành công khi mọi video reviewed và có người g�
 Chỉ sau khi chốt nhãn độc lập, tạo một JSON dự đoán với ID trùng tuyệt đối, chẳng hạn định dạng:
 
 ```json
-{"videos": [{"id": "video_id", "bottom_frames": [20, 50]}]}
+{"videos": [{"id": "video_id", "bottom_frames": [20, 50], "coverage_status": "complete"}]}
 ```
 
-Ví dụ minh họa định dạng, không phải kết quả thực. Cần liệt kê mọi video trong file nhãn kể cả video không dự đoán được (`bottom_frames: []`), không bỏ sót lỗi xử lý. Chạy:
+Ví dụ minh họa định dạng, không phải kết quả thực. Cần liệt kê mọi video trong file nhãn. Dùng `coverage_status` là `complete`, `partial`, `failed` hoặc `insufficient_data`; những video không complete được báo riêng và loại khỏi các metric mốc đáy. `bottom_frames: []` chỉ có nghĩa là không phát hiện rep, không tự thể hiện lỗi xử lý. Vì tương thích dữ liệu cũ, train/validation thiếu `coverage_status` được coi là complete; cần điền rõ trường này khi chạy mới.
 
 ```bash
 ./.venv/Scripts/python.exe ai/data/evaluate_rep_annotations.py data/external/annotation_work/tasks.json data/external/annotation_work/predictions.json --tolerance 0.2
 ```
 
-Công cụ từ chối nhãn chưa hoàn chỉnh và ID thiếu/trùng, tách kết quả train/validation và báo TP/FP/FN, precision/recall, sai số số rep, sai lệch frame đáy ghép được. Chỉ đánh giá mốc đáy và count; chưa đánh giá mốc đầu/cuối, góc hay chất lượng form. Không chọn ngưỡng theo tập test.
+Công cụ từ chối nhãn chưa hoàn chỉnh và ID thiếu/trùng, tách kết quả theo split và báo TP/FP/FN, precision/recall, sai số số rep, sai lệch frame đáy ghép được. Các tác vụ test chỉ được bật tường minh bằng `--include-test` khi đánh giá; mỗi dự đoán test bắt buộc có `coverage_status`. Công cụ phát hiện trùng subject giữa các split khi có `dataset`/`subject`, nhưng không thể phát hiện trùng người giữa các nguồn nếu ID khác hoặc thiếu. Chỉ đánh giá mốc đáy và count; chưa đánh giá mốc đầu/cuối, góc hay chất lượng form. Không chọn ngưỡng theo tập test.
 
 ## Trạng thái
 
