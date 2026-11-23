@@ -24,10 +24,32 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [connectionError, setConnectionError] = useState(false);
+  const [restoring, setRestoring] = useState(true);
   const [selected, setSelected] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let id: string | null = null;
+    try { id = localStorage.getItem("biomechanics:last-analysis"); } catch { /* Storage is optional. */ }
+    if (!id) { setRestoring(false); return () => controller.abort(); }
+    const restore = async () => {
+      try {
+        const response = await fetch(`${API}/api/v1/analyses/${id}`, { signal: controller.signal, cache: "no-store" });
+        if (response.status === 404 || response.status === 422) {
+          try { localStorage.removeItem("biomechanics:last-analysis"); } catch { /* Storage is optional. */ }
+          if (!controller.signal.aborted) setError("Không tìm thấy lần phân tích trước trên backend hiện tại.");
+        } else if (!response.ok) throw new Error("restore failed");
+        else { const restored: Job = await response.json(); if (!controller.signal.aborted) setJob(restored); }
+      } catch {
+        if (!controller.signal.aborted) setError("Chưa thể khôi phục lần phân tích trước. Kiểm tra backend rồi tải lại trang.");
+      } finally { if (!controller.signal.aborted) setRestoring(false); }
+    };
+    void restore();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!job || (job.status !== "queued" && job.status !== "processing")) return;
@@ -36,6 +58,11 @@ export default function Home() {
     const poll = async () => {
       try {
         const response = await fetch(`${API}/api/v1/analyses/${job.id}`, { signal: controller.signal, cache: "no-store" });
+        if (response.status === 404 || response.status === 422) {
+          try { localStorage.removeItem("biomechanics:last-analysis"); } catch { /* Storage is optional. */ }
+          if (!controller.signal.aborted) { setJob(null); setError("Không tìm thấy tác vụ trên backend. Hãy gửi lại video."); }
+          return;
+        }
         if (!response.ok) throw new Error("poll failed");
         const next: Job = await response.json();
         if (controller.signal.aborted) return;
@@ -69,8 +96,10 @@ export default function Home() {
         const message: Record<number, string> = { 413: "Video vượt quá giới hạn của máy chủ.", 415: "Định dạng video không được hỗ trợ.", 422: "Không đọc được video hoặc thông tin gửi lên không hợp lệ.", 503: "Bộ xử lý hiện chưa sẵn sàng." };
         throw new Error(message[response.status] || `Không thể gửi video (lỗi ${response.status}).`);
       }
-      setJob(await response.json());
-    } catch (e) { setError(e instanceof TypeError ? "Không kết nối được backend. Hãy kiểm tra server và thử lại." : e instanceof Error ? e.message : "Có lỗi khi gửi video."); }
+      const created: Job = await response.json();
+      try { localStorage.setItem("biomechanics:last-analysis", created.id); } catch { /* Storage is optional. */ }
+      setJob(created);
+    } catch (e) { setError(e instanceof TypeError ? "Mất kết nối khi gửi video. Tác vụ có thể đã được tạo; hãy kiểm tra backend trước khi gửi lại." : e instanceof Error ? e.message : "Có lỗi khi gửi video."); }
     finally { requestRef.current = false; setUploading(false); }
   }
 
@@ -78,7 +107,11 @@ export default function Home() {
     setSelected(rep.rep_id);
     if (videoRef.current) { videoRef.current.currentTime = rep.bottom_time_s; videoRef.current.focus(); }
   }
-  const busy = uploading || job?.status === "queued" || job?.status === "processing";
+  function forgetLastAnalysis() {
+    try { localStorage.removeItem("biomechanics:last-analysis"); } catch { /* Storage is optional. */ }
+    setJob(null); setSelected(null); setError(""); setConnectionError(false);
+  }
+  const busy = restoring || uploading || job?.status === "queued" || job?.status === "processing";
   const result = job?.status === "completed" ? job.result : null;
 
   return <div className="shell">
@@ -102,9 +135,9 @@ export default function Home() {
             <label className="field-label" htmlFor="camera">Góc quay của video</label>
             <div className="select-wrap"><select id="camera" value={view} onChange={e => setView(e.target.value)} disabled={!!busy}><option value="side_90deg">Nhìn từ bên hông (khuyến nghị)</option><option value="front_0deg">Nhìn từ phía trước</option><option value="unknown">Không chắc chắn</option></select></div>
             <p className="field-hint">Các số đo hiện hỗ trợ góc quay bên hông; lựa chọn của bạn chưa được xác minh tự động.</p>
-            <button className="primary" type="button" onClick={submit} disabled={!file || !!busy}>{uploading ? "Đang tải video lên..." : busy ? "Đang xử lý..." : "Phân tích video"}</button>
+            <button className="primary" type="button" onClick={submit} disabled={!file || !!busy}>{restoring ? "Đang khôi phục tác vụ..." : uploading ? "Đang tải video lên..." : busy ? "Đang xử lý..." : "Phân tích video"}</button>
             {error && <p className="message error" role="alert">{error}</p>}
-            {job && <div className={`job-status ${job.status}`} role="status"><span className="status-dot"/><div><strong>{statusText[job.status]}</strong><p>{job.status === "queued" ? "Video đã được đưa vào hàng đợi." : job.status === "processing" ? "Đang trích xuất chuyển động và đánh giá từng rep." : job.status === "failed" ? job.error === "interrupted" ? "Tác vụ bị gián đoạn do backend khởi động lại. Hãy tải lại video." : "Hãy kiểm tra backend và model pose, rồi thử lại." : "Bạn có thể xem kết quả bên cạnh."}</p>{connectionError && <p>Đang mất kết nối; hệ thống sẽ tự thử lại.</p>}</div></div>}
+            {job && <div className={`job-status ${job.status}`} role="status"><span className="status-dot"/><div><strong>{statusText[job.status]}</strong><p>{job.status === "queued" ? "Video đã được đưa vào hàng đợi." : job.status === "processing" ? "Đang trích xuất chuyển động và đánh giá từng rep." : job.status === "failed" ? job.error === "interrupted" ? "Tác vụ bị gián đoạn do backend khởi động lại. Hãy tải lại video." : "Hãy kiểm tra backend và model pose, rồi thử lại." : "Bạn có thể xem kết quả bên cạnh."}</p>{connectionError && <p>Đang mất kết nối; hệ thống sẽ tự thử lại.</p>}{!busy && <button type="button" className="forget" onClick={forgetLastAnalysis}>Ẩn kết quả trên trình duyệt</button>}</div></div>}
           </section>
           <section className="card results-card"><div className="card-heading"><div><span className="overline">KẾT QUẢ PHÂN TÍCH</span><h2>{result ? "Xem lại chuyển động" : "Góc nhìn của bạn"}</h2></div><span className="result-index">SQUAT / 01</span></div>
             {!result ? <div className="empty"><div className="empty-symbol"><span>◌</span><b>✳</b></div><h3>Mỗi rep đều có câu chuyện.</h3><p>Tải video lên để xem các rep được phát hiện, số đo và thời điểm cần xem lại.</p><div className="empty-tags"><span>VIDEO GỐC</span><span>PHÂN ĐOẠN REP</span><span>GÓC CHUYỂN ĐỘNG</span></div></div> : <div className="results">
@@ -116,12 +149,12 @@ export default function Home() {
               {result.outcome === "no_reps_detected" && <p className="message caution">Không phát hiện rep trong dữ liệu phân tích. Điều này không khẳng định video không có rep.</p>}
               {result.outcome === "insufficient_data" && <p className="message caution">Không đủ dữ liệu để phân tích. Hãy thử video có đủ cơ thể và ánh sáng rõ hơn.</p>}
               {result.reps.length > 0 && <><div className="section-title"><div><span className="overline">CHI TIẾT</span><h3>Các rep phát hiện</h3></div><span>Nhấn để tua đến đáy</span></div><div className="reps">{result.reps.map(rep => <article className={`rep ${selected === rep.rep_id ? "selected" : ""}`} key={rep.rep_id}><button type="button" className="rep-header" onClick={() => selectRep(rep)}><span className="rep-number">{String(rep.rep_id).padStart(2, "0")}</span><span><strong>Rep {rep.rep_id}</strong><small>Điểm đáy · {time(rep.bottom_time_s)}</small></span><span className="seek">Xem video</span></button><div className="measurements"><span>Góc gối ở đáy <b>{fmt(rep.assessment.find(r => r.rule_id === "insufficient_depth")?.measured_value, "°")}</b></span><span>Độ ngả thân ở đáy <b>{fmt(rep.assessment.find(r => r.rule_id === "excessive_trunk_lean")?.measured_value, "°")}</b></span></div><div className="rules">{rep.assessment.map(rule => <div className="rule" key={rule.rule_id}><div className="rule-title"><strong>{rule.name}</strong><span className={`rule-status ${rule.status}`}>{rule.status === "finding" ? "Cần chú ý" : rule.status === "within_threshold" ? "Trong ngưỡng thử nghiệm" : "Chưa đủ dữ liệu"}</span></div>{rule.measured_value !== null && <p>Số đo {fmt(rule.measured_value, "°")} · Ngưỡng so sánh {fmt(rule.benchmark_value, "°")}</p>}{rule.status === "finding" && cues[rule.rule_id] && <p className="cue">{cues[rule.rule_id]}</p>}{rule.status === "insufficient_data" && <p>Chưa thể đánh giá quy tắc này từ góc quay hoặc chất lượng pose hiện tại.</p>}</div>)}</div></article>)}</div></>}
-              <p className="disclaimer">Các ngưỡng đang trong giai đoạn thử nghiệm; kết quả chỉ hỗ trợ tham khảo, không phải chẩn đoán y khoa. Số rep có thể bị bỏ sót.</p>
+              <p className="disclaimer">Các ngưỡng đang trong giai đoạn thử nghiệm; kết quả chỉ hỗ trợ tham khảo, không phải chẩn đoán y khoa. Số rep có thể bị bỏ sót. Mốc thời gian được tính theo FPS danh nghĩa và có thể lệch trên một số video.</p>
             </div>}
           </section>
         </div>
         <section className="guide"><div><span className="overline">TRƯỚC KHI BẮT ĐẦU</span><h2>Quay đúng, nhìn rõ hơn.</h2><p>Chuẩn bị video đơn giản để hệ thống quan sát được chuyển động của bạn.</p></div><div className="guide-item"><span>◉</span><strong>Chọn góc bên hông</strong><p>Đặt camera ngang hông, cách khoảng 2–3 m.</p></div><div className="guide-item"><span>▣</span><strong>Giữ trọn cơ thể</strong><p>Đảm bảo đầu và bàn chân đều nằm trong khung hình.</p></div><div className="guide-item"><span>◷</span><strong>Giữ khung hình ổn định</strong><p>Đủ sáng, tránh che khuất; nên quay từ 30 FPS.</p></div></section>
-        <footer><span>BIOMECHANICS COACH <b>·</b> PROJECT 3</span><span>Video được lưu trên máy chạy backend. Chưa tự động xóa.</span></footer>
+        <footer><span>BIOMECHANICS COACH <b>·</b> PROJECT 3</span><span>Video lưu trên máy chạy backend, chưa tự động xóa. Trình duyệt lưu ID tác vụ gần nhất.</span></footer>
       </div>
     </main>
   </div>;

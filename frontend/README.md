@@ -15,7 +15,7 @@ cd /d/Project/AI_Biomechanics_Coach/backend
 
 ```bash
 cd /d/Project/AI_Biomechanics_Coach/frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -23,4 +23,6 @@ Mở `http://localhost:3000`. Frontend mặc định gọi `http://127.0.0.1:800
 
 Video MP4/MOV mặc định không quá 100 MiB. Camera bên hông mới được evaluator hỗ trợ; góc quay là người dùng tự khai. Video và kết quả được lưu trên máy chạy backend, hiện không có cơ chế tự xóa. Trình duyệt có thể không phát được một số codec MOV mặc dù backend đọc được; MP4 H.264 là lựa chọn phù hợp hơn.
 
-Chưa có lockfile vì cài npm bị treo trong môi trường hiện tại. Sau khi cài được, lưu `package-lock.json` để cố định phiên bản. Chưa chạy build, kiểm thử UI hay end-to-end theo yêu cầu gộp kiểm thử khi hoàn thiện MVP.
+Trình duyệt lưu ID tác vụ gần nhất trong localStorage để khôi phục sau khi tải lại trang. Có thể ẩn kết quả và xóa ID khỏi trình duyệt bằng nút trên giao diện; thao tác này không xóa video hoặc kết quả khỏi backend. Nếu xóa dữ liệu trình duyệt thì không thể khôi phục bằng cách này. Không có tài khoản hay xác thực, vì vậy chỉ dùng trên máy local tin cậy.
+
+Các thư viện đã được cài và khóa bằng `package-lock.json`. Chưa chạy build, kiểm thử UI hay end-to-end theo yêu cầu gộp kiểm thử khi hoàn thiện MVP.
