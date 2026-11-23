@@ -65,3 +65,29 @@ def test_missing_pose_near_rep_blocks_confident_evaluation():
     assert len(result['reps']) == 1
     assert result['reps'][0]['missing_pose_near_rep'] is True
     assert result['reps'][0]['quality_status'] == 'needs_review'
+
+
+@pytest.mark.parametrize('invalid', ['coincident', 'nan', 'bad_visibility'])
+def test_invalid_geometry_splits_span_instead_of_fabricating_angles(invalid):
+    rep = np.r_[np.linspace(170, 80, 20, endpoint=False), np.linspace(80, 170, 21)]
+    data = make_data(np.r_[np.full(10, 170), rep, np.full(10, 170)])
+    points = {p['name']: p for p in data['frames'][30]['landmarks']}
+    if invalid == 'coincident':
+        points['right_hip']['x'] = points['right_knee']['x']
+        points['right_hip']['y'] = points['right_knee']['y']
+    elif invalid == 'nan':
+        points['right_knee']['x'] = float('nan')
+    else:
+        points['right_knee']['visibility'] = 2
+    result = analyze_detected_spans(data)
+    assert result['status'] == 'partial'
+    assert result['missing_frames'] == 1
+    assert result['reps'] == []
+
+
+def test_low_visibility_count_is_reported_even_without_reps():
+    data = make_data([170] * 20)
+    data['frames'][4]['landmarks'][0]['visibility'] = .1
+    result = analyze_detected_spans(data)
+    assert result['reps'] == []
+    assert result['low_visibility_frames'] == 1

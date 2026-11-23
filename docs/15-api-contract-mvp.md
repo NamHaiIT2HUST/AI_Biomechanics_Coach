@@ -12,6 +12,8 @@ Lỗi input: 413 quá giới hạn, 415 đuôi không hỗ trợ, 422 tệp vide
 
 Kết quả phụ thuộc pipeline, mang cảnh báo ngưỡng thử nghiệm, chất lượng và trạng thái partial. `detected_rep_count` không phải số rep chắc chắn; không có rep phát hiện không đồng nghĩa không có rep.
 
+Trong `coverage`, `missing_frames` tính các frame không có pose/khớp cần thiết hoặc có tọa độ, visibility hay hình học khớp không hợp lệ; các frame này tách chuỗi phân tích. `low_visibility_frames` là số frame đã phân tích có ít nhất một khớp cần thiết dưới ngưỡng visibility. Nó không bao gồm đoạn quá ngắn bị bỏ qua, được biểu thị qua trạng thái partial và `coverage.warnings`. Trạng thái complete chỉ nói về phạm vi frame được xử lý, không khẳng định các phép đo chính xác. Kết quả cũ có thể không có trường `low_visibility_frames`.
+
 ## Chạy thử bằng Git Bash
 
 ```bash

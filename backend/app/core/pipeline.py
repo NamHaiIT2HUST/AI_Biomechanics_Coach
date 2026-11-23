@@ -60,7 +60,7 @@ def analyze_squat_video(video_path, *, camera_view, config=None, engine=None):
         raise ValueError('Invalid camera view')
     config = config if config is not None else load_squat_config()
     params = _parameters(config)
-    engine = engine if engine is not None else PoseEngine()
+    engine = engine if engine is not None else PoseEngine(model_path=str(settings.MODEL_PATH))
     extraction = engine.extract_from_video(str(video))
     pose = asdict(extraction)
     if not pose['frames'] or extraction.total_frames != len(pose['frames']):
@@ -95,7 +95,8 @@ def analyze_squat_video(video_path, *, camera_view, config=None, engine=None):
         'pose': {'detected_frames': extraction.detected_frames_count, 'detection_rate': extraction.detection_rate,
                  'dominant_side': analysis['dominant_side']},
         'coverage': {'status': analysis['status'], 'missing_frames': analysis['missing_frames'],
-                     'analyzed_frames': analysis['analyzed_frames'], 'spans': analysis['spans'],
+                     'analyzed_frames': analysis['analyzed_frames'], 'low_visibility_frames': analysis['low_visibility_frames'],
+                     'spans': analysis['spans'],
                      'warnings': analysis['warnings']},
         'config': {'sha256': hashlib.sha256(canonical_config).hexdigest(), 'parameters': params,
                    'experimental': True},

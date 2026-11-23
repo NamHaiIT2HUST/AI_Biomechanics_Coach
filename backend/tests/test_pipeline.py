@@ -102,3 +102,14 @@ def test_empty_rules_are_rejected_even_if_no_reps(tmp_path):
     with pytest.raises(ValueError, match='at least one rule'):
         analyze_squat_video(video, camera_view='side_90deg', engine=engine, config=config)
     assert engine.calls == 0
+
+
+def test_pipeline_uses_configured_pose_model_path(tmp_path, monkeypatch):
+    from app.core import pipeline
+    video = tmp_path / 'source.mp4'; video.write_bytes(b'stub')
+    model = tmp_path / 'custom.task'
+    seen = []
+    monkeypatch.setattr(pipeline.settings, 'MODEL_PATH', model)
+    monkeypatch.setattr(pipeline, 'PoseEngine', lambda model_path: seen.append(model_path) or FakeEngine())
+    analyze_squat_video(video, camera_view='side_90deg')
+    assert seen == [str(model)]
