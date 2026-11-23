@@ -91,3 +91,14 @@ def test_low_visibility_count_is_reported_even_without_reps():
     result = analyze_detected_spans(data)
     assert result['reps'] == []
     assert result['low_visibility_frames'] == 1
+
+
+def test_short_candidates_keep_global_frame_offsets_after_gap():
+    fast = np.r_[np.linspace(170, 80, 8, endpoint=False), np.linspace(80, 170, 9)]
+    data = make_data(np.r_[np.full(10, 170.), fast, np.full(10, 170.)], missing=(1,))
+    result = analyze_detected_spans(data)
+    assert result['reps'] == []
+    assert len(result['short_motion_candidates']) == 1
+    item = result['short_motion_candidates'][0]
+    assert item['bottom_frame'] == 18
+    assert item['bottom_time_s'] == pytest.approx(18 / 30)

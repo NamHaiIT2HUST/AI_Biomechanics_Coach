@@ -64,8 +64,10 @@ def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_th
         hip.append(calculate_angle_2d(*coords[:3]))
         trunk.append(calculate_trunk_lean(coords[0], coords[1]))
     knee, hip, trunk = (smooth_signal_1d(a) for a in (knee, hip, trunk))
+    short_candidates = []
     reps, _ = segment_squat_reps(knee, fps, hip_angles=hip, trunk_lean=trunk, min_duration_s=min_duration_s, bottom_threshold=bottom_threshold,
-                               standing_threshold=standing_threshold, prominence=prominence)
+                               standing_threshold=standing_threshold, prominence=prominence,
+                               short_motion_candidates=short_candidates)
     low_set = set(low_visibility)
     results = []
     for rep in reps:
@@ -84,7 +86,7 @@ def analyze_landmarks(data, *, min_duration_s=1.0, min_visibility=0.5, bottom_th
         "frames": len(frames), "min_visibility": min_visibility,
         "low_visibility_frames": len(low_visibility), "min_duration_s": min_duration_s, "bottom_threshold": bottom_threshold,
         "warning": "Landmark dưới ngưỡng vẫn được dùng; kết quả chỉ để khảo sát, chưa được kiểm chứng." if low_visibility else "Kết quả chưa được kiểm chứng bằng nhãn độc lập.",
-        "reps": results,
+        "reps": results, "short_motion_candidates": short_candidates,
     }
 
 

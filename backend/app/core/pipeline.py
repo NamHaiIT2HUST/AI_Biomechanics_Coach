@@ -96,6 +96,7 @@ def analyze_squat_video(video_path, *, camera_view, config=None, engine=None):
                  'dominant_side': analysis['dominant_side']},
         'coverage': {'status': analysis['status'], 'missing_frames': analysis['missing_frames'],
                      'analyzed_frames': analysis['analyzed_frames'], 'low_visibility_frames': analysis['low_visibility_frames'],
+                     'short_motion_candidates': analysis['short_motion_candidates'],
                      'spans': analysis['spans'],
                      'warnings': analysis['warnings']},
         'config': {'sha256': hashlib.sha256(canonical_config).hexdigest(), 'parameters': params,

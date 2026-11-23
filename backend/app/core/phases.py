@@ -54,6 +54,7 @@ def segment_squat_reps(
     prominence: float = 15.0,
     min_duration_s: float = 1.0,
     pause_tolerance_deg: float = 2.0,
+    short_motion_candidates: Optional[list[dict]] = None,
 ) -> tuple[list[RepData], list[SquatPhase]]:
     """Return (completed reps, one phase per input frame).
 
@@ -70,6 +71,9 @@ def segment_squat_reps(
     Pause is the contiguous interval around the minimum within the configured
     tolerance. Its duration overlaps the eccentric/concentric durations, which
     are measured to/from the bottom frame as specified.
+    If supplied, short_motion_candidates receives rejected standing-to-standing
+    motions that otherwise satisfy the depth and prominence gates. They are
+    diagnostic candidates, not verified repetitions or coaching assessments.
     """
     if not np.isfinite(fps) or fps <= 0:
         raise ValueError("fps must be positive and finite")
@@ -115,6 +119,10 @@ def segment_squat_reps(
             if angle >= standing_threshold:
                 local_peaks, _ = find_peaks(-knee[start:i + 1], prominence=prominence, distance=max(1, ceil(fps)))
                 candidates = [start + int(j) for j in local_peaks if knee[start + j] < bottom_threshold]
+                if candidates and (i - start) / fps < min_duration_s and short_motion_candidates is not None:
+                    bottom = min(candidates, key=lambda j: knee[j])
+                    short_motion_candidates.append({'start_frame': start, 'bottom_frame': bottom,
+                                                    'end_frame': i, 'duration_s': (i - start) / fps})
                 if candidates and (i - start) / fps >= min_duration_s:
                     bottom = min(candidates, key=lambda j: knee[j])
                     lo = hi = bottom

@@ -49,6 +49,23 @@ def test_fast_movement_rejected():
     assert segment_squat_reps(signal, 30)[0] == []
 
 
+def test_short_candidate_is_reported_without_being_counted():
+    signal = np.r_[np.full(5, 170.), rep(80, 8, 8), np.full(5, 170.)]
+    candidates = []
+    reps, _ = segment_squat_reps(signal, 30, short_motion_candidates=candidates)
+    assert reps == []
+    assert len(candidates) == 1
+    assert candidates[0]['bottom_frame'] == 13
+    assert candidates[0]['duration_s'] < 1.0
+
+
+def test_shallow_jitter_is_not_reported_as_short_candidate():
+    signal = np.r_[np.full(5, 170.), rep(155, 5, 5), np.full(5, 170.)]
+    candidates = []
+    segment_squat_reps(signal, 30, short_motion_candidates=candidates)
+    assert candidates == []
+
+
 def test_pause_and_missing_optional_values():
     signal = np.r_[np.full(4, 170.), np.linspace(170, 80, 20, endpoint=False), np.full(8, 80.), np.linspace(80, 170, 21), np.full(4, 170.)]
     trunk = np.full(len(signal), np.nan)
